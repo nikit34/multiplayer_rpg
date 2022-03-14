@@ -2,6 +2,8 @@ package main
 
 import (
 	"sync"
+	"time"
+
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
 )
@@ -27,6 +29,7 @@ type Player struct {
 	Direction Direction
 	Name string
 	Icon rune
+	LastMove time.Time
 	Mux sync.Mutex
 }
 
@@ -39,6 +42,7 @@ func main() {
 		Position: Coordinate{X: -1, Y: -5},
 		Name: "Alice",
 		Icon: 'A',
+		LastMove:  time.Time{},
 		Direction: DirectionStop,
 	}
 
@@ -48,6 +52,7 @@ func main() {
 			Position: Coordinate{X: 10, Y: 10},
 			Name: "Bella",
 			Icon: 'B',
+			LastMove: time.Time{},
 			Direction: DirectionStop,
 		},
 	}}
@@ -62,7 +67,7 @@ func main() {
 
 			for x := 1; x < width; x++ {
 				for y := 1; y < height; y++ {
-					screen.SetContent(x, y, '.', nil, tcell.StyleDefault.Foreground(tcell.ColorWhite))
+					screen.SetContent(x, y, ' ', nil, tcell.StyleDefault.Foreground(tcell.ColorWhite))
 				}
 			}
 			screen.SetContent(centerX, centerY, 'O', nil, tcell.StyleDefault.Foreground(tcell.ColorWhite))
@@ -82,6 +87,7 @@ func main() {
 	)
 
 	box.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		currentPlayer.Mux.Lock()
 		switch e.Key() {
 		case tcell.KeyUp:
 			currentPlayer.Direction = DirectionUp
@@ -94,13 +100,21 @@ func main() {
 		default:
 			currentPlayer.Direction = DirectionStop
 		}
+		currentPlayer.Mux.Unlock()
 		return e
 	})
+
+	app := tview.NewApplication()
 
 	go func() {
 		for {
 			for _, player := range game.Players {
 				player.Mux.Lock()
+				if player.Direction == DirectionStop || player.LastMove.After(time.Now().Add(-50 * time.Millisecond)) {
+					player.Direction = DirectionStop
+					player.Mux.Unlock()
+					continue
+				}
 				switch player.Direction {
 				case DirectionUp:
 					player.Position.Y -= 1
@@ -112,11 +126,12 @@ func main() {
 					player.Position.X += 1
 				}
 				player.Direction = DirectionStop
+				player.LastMove = time.Now()
 				player.Mux.Unlock()
 			}
 		}
 	}()
-	app := tview.NewApplication()
+
 	if err := app.SetRoot(box, true).SetFocus(box).Run(); err != nil {
 		panic(err)
 	}
