@@ -108,6 +108,13 @@ func main() {
 
 	go func() {
 		for {
+			app.Draw()
+			time.Sleep(17 * time.Microsecond)
+		}
+	}()
+
+	go func() {
+		for {
 			for _, player := range game.Players {
 				player.Mux.Lock()
 				if player.Direction == DirectionStop || player.LastMove.After(time.Now().Add(-50 * time.Millisecond)) {
@@ -129,6 +136,18 @@ func main() {
 				player.LastMove = time.Now()
 				player.Mux.Unlock()
 			}
+		}
+	}()
+
+	go func() {
+		for {
+			for _, player := range game.Players {
+				if player.Name == "Bob" {
+					player.Position.X -= 1
+					player.Position.Y -= 1
+				}
+			}
+			time.Sleep(time.Second * 1)
 		}
 	}()
 
