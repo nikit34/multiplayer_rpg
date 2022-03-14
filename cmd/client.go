@@ -29,7 +29,6 @@ type Player struct {
 	Direction Direction
 	Name string
 	Icon rune
-	LastMove time.Time
 	Mux sync.Mutex
 }
 
@@ -42,7 +41,6 @@ func main() {
 		Position: Coordinate{X: -1, Y: -5},
 		Name: "Alice",
 		Icon: 'A',
-		LastMove:  time.Time{},
 		Direction: DirectionStop,
 	}
 
@@ -52,7 +50,6 @@ func main() {
 			Position: Coordinate{X: 10, Y: 10},
 			Name: "Bella",
 			Icon: 'B',
-			LastMove: time.Time{},
 			Direction: DirectionStop,
 		},
 	}}
@@ -114,10 +111,11 @@ func main() {
 	}()
 
 	go func() {
+		lastmove := map[string]time.Time{}
 		for {
 			for _, player := range game.Players {
 				player.Mux.Lock()
-				if player.Direction == DirectionStop || player.LastMove.After(time.Now().Add(-50 * time.Millisecond)) {
+				if player.Direction == DirectionStop || lastmove[player.Name].After(time.Now().Add(-50 * time.Millisecond)) {
 					player.Direction = DirectionStop
 					player.Mux.Unlock()
 					continue
@@ -133,7 +131,7 @@ func main() {
 					player.Position.X += 1
 				}
 				player.Direction = DirectionStop
-				player.LastMove = time.Now()
+				lastmove[player.Name] = time.Now()
 				player.Mux.Unlock()
 			}
 		}
