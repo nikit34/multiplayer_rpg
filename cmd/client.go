@@ -20,6 +20,7 @@ func main() {
 
 	game := backend.NewGame()
 	game.Players = append(game.Players, &currentPlayer)
+	game.CurrentPlayer = &currentPlayer
 
 	box := tview.NewBox().SetBorder(true).SetTitle("multiplayer-rpg")
 	box.SetDrawFunc(
