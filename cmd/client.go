@@ -1,58 +1,25 @@
 package main
 
 import (
-	"sync"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
+	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
+
+	tcell "github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 
-type Coordinate struct {
-	X int
-	Y int
-}
-
-type Direction int32
-
-const (
-	DirectionUp Direction = iota
-	DirectionDown
-	DirectionLeft
-	DirectionRight
-	DirectionStop
-)
-
-type Player struct {
-	Position Coordinate
-	Direction Direction
-	Name string
-	Icon rune
-	Mux sync.Mutex
-}
-
-type Game struct {
-	Players []*Player
-}
-
 func main() {
-	currentPlayer := Player{
-		Position: Coordinate{X: -1, Y: -5},
+	currentPlayer := backend.Player{
+		Position: backend.Coordinate{X: -1, Y: -5},
 		Name: "Alice",
 		Icon: 'A',
-		Direction: DirectionStop,
+		Direction: backend.DirectionStop,
 	}
 
-	game := Game{Players: []*Player{
-		&currentPlayer,
-		{
-			Position: Coordinate{X: 10, Y: 10},
-			Name: "Bella",
-			Icon: 'B',
-			Direction: DirectionStop,
-		},
-	}}
+	game := backend.NewGame()
+	game.Players = append(game.Players, &currentPlayer)
 
 	box := tview.NewBox().SetBorder(true).SetTitle("multiplayer-rpg")
 	box.SetDrawFunc(
@@ -87,15 +54,15 @@ func main() {
 		currentPlayer.Mux.Lock()
 		switch e.Key() {
 		case tcell.KeyUp:
-			currentPlayer.Direction = DirectionUp
+			currentPlayer.Direction = backend.DirectionUp
 		case tcell.KeyDown:
-			currentPlayer.Direction = DirectionDown
+			currentPlayer.Direction = backend.DirectionDown
 		case tcell.KeyLeft:
-			currentPlayer.Direction = DirectionLeft
+			currentPlayer.Direction = backend.DirectionLeft
 		case tcell.KeyRight:
-			currentPlayer.Direction = DirectionRight
+			currentPlayer.Direction = backend.DirectionRight
 		default:
-			currentPlayer.Direction = DirectionStop
+			currentPlayer.Direction = backend.DirectionStop
 		}
 		currentPlayer.Mux.Unlock()
 		return e
@@ -110,44 +77,7 @@ func main() {
 		}
 	}()
 
-	go func() {
-		lastmove := map[string]time.Time{}
-		for {
-			for _, player := range game.Players {
-				player.Mux.Lock()
-				if player.Direction == DirectionStop || lastmove[player.Name].After(time.Now().Add(-50 * time.Millisecond)) {
-					player.Direction = DirectionStop
-					player.Mux.Unlock()
-					continue
-				}
-				switch player.Direction {
-				case DirectionUp:
-					player.Position.Y -= 1
-				case DirectionDown:
-					player.Position.Y += 1
-				case DirectionLeft:
-					player.Position.X -= 1
-				case DirectionRight:
-					player.Position.X += 1
-				}
-				player.Direction = DirectionStop
-				lastmove[player.Name] = time.Now()
-				player.Mux.Unlock()
-			}
-		}
-	}()
-
-	go func() {
-		for {
-			for _, player := range game.Players {
-				if player.Name == "Bob" {
-					player.Position.X -= 1
-					player.Position.Y -= 1
-				}
-			}
-			time.Sleep(time.Second * 1)
-		}
-	}()
+	game.Start()
 
 	if err := app.SetRoot(box, true).SetFocus(box).Run(); err != nil {
 		panic(err)
