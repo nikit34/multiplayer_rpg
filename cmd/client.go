@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -46,7 +46,7 @@ func main() {
 
 	game := Game{Players: []*Player{
 		&currentPlayer,
-		&Player{
+		{
 			Position: Coordinate{X: 10, Y: 10},
 			Name: "Bella",
 			Icon: 'B',
@@ -75,12 +75,12 @@ func main() {
 					centerY + player.Position.Y,
 					player.Icon,
 					nil,
-					tcell.StyleDefault.Foreground(tcell.ColorRed)
+					tcell.StyleDefault.Foreground(tcell.ColorRed),
 				)
 				player.Mux.Unlock()
 			}
 			return 0, 0, 0, 0
-		}
+		},
 	)
 
 	box.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
