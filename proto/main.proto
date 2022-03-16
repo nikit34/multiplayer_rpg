@@ -4,7 +4,7 @@ package proto;
 
 
 service Game {
-    rpc Stream (stream Message) returns (stream Message) {}
+    rpc Stream (stream Request) returns (stream Response) {}
 }
 
 message Coordinate {
@@ -12,10 +12,12 @@ message Coordinate {
     int32 y = 2;
 }
 
-message Connect {}
+message Connect {
+    string player = 1;
+}
 
 message Initialize {
-    Coordinate startPosition = 1;
+    Coordinate position = 1;
 }
 
 message Move {
@@ -29,11 +31,27 @@ message Move {
     Direction direction = 1;
 }
 
-message Message {
+message AddPlayer {
+    Coordinate position = 1;
+}
+
+message UpdatePlayer {
+    Coordinate position = 1;
+}
+
+message RemovePlayer {}
+
+message Request {
+    oneof action {
+        Connect connect = 1;
+        Move move = 2;
+    }
+}
+
+message Response {
     string player = 1;
     oneof action {
-        Connect connect = 2;
-        Move move = 3
-        Initialize initialize = 4;
+        Move move = 2;
+        Initialize initialize = 3;
     }
 }
