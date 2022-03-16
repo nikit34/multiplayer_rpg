@@ -1,25 +1,29 @@
 package main
 
 import (
+	"context"
+	"io"
+	"log"
+
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
+	"github.com/nikit34/multiplayer_rpg_go/proto"
+
+	"google.golang.org/grpc"
 )
 
-
 func main() {
-	currentPlayer := backend.Player{
-		Position: backend.Coordinate{X: -1, Y: -5},
-		Name: "Alice",
-		Icon: 'A',
-		Direction: backend.DirectionStop,
-	}
-
 	game := backend.NewGame()
-	game.Players = append(game.Players, &currentPlayer)
-	game.CurrentPlayer = &currentPlayer
-
-	app := frontend.NewView(&game)
+	view := frontend.NewView(&game)
 
 	game.Start()
-	app.Start()
+
+	playerName := "Bob"
+
+	conn, err := grpc.Dial(":8888", grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("can not connect with server %v", err)
+	}
+
+	client := proto.NewGameClient(conn)
 }
