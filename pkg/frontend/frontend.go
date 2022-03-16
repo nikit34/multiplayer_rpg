@@ -13,11 +13,12 @@ import (
 type View struct {
 	Game *backend.Game
 	App *tview.Application
+	CurrentPlayer *backend.Player
 }
 
-func NewView(game *backend.Game) View {
+func NewView(game *backend.Game) *View {
 	app := tview.NewApplication()
-	view := View{
+	view := &View{
 		Game: game,
 		App: app,
 	}
@@ -52,18 +53,21 @@ func NewView(game *backend.Game) View {
 	)
 
 	box.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-		view.Game.CurrentPlayer.Mux.Lock()
+		if view.CurrentPlayer == nil {
+			return e
+		}
+		view.CurrentPlayer.Mux.Lock()
 		switch e.Key() {
 		case tcell.KeyUp:
-			view.Game.CurrentPlayer.Direction = backend.DirectionUp
+			view.CurrentPlayer.Direction = backend.DirectionUp
 		case tcell.KeyDown:
-			view.Game.CurrentPlayer.Direction = backend.DirectionDown
+			view.CurrentPlayer.Direction = backend.DirectionDown
 		case tcell.KeyLeft:
-			view.Game.CurrentPlayer.Direction = backend.DirectionLeft
+			view.CurrentPlayer.Direction = backend.DirectionLeft
 		case tcell.KeyRight:
-			view.Game.CurrentPlayer.Direction = backend.DirectionRight
+			view.CurrentPlayer.Direction = backend.DirectionRight
 		}
-		view.Game.CurrentPlayer.Mux.Unlock()
+		view.CurrentPlayer.Mux.Unlock()
 		return e
 	})
 
