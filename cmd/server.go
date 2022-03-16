@@ -39,7 +39,7 @@ func (s server) Stream(srv proto.Game_streamServer) error {
 	log.Println("start server")
 	ctx := srv.Context()
 	currentPlayer := ""
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -77,18 +77,14 @@ func (s server) Stream(srv proto.Game_streamServer) error {
 				},
 			}
 
-			s.Mux.Lock()
-			s.Clients[currentPlayer] = &client{
-				StreamServer: srv,
-			}
-
 			if err := srv.Send(&resp); err != nil {
 				log.Printf("send error %v", err)
 			}
 
-			log.Printf("sent initialize message")
+			log.Printf("sent initialize message for %v", currentPlayer)
 
 			resp = proto.Response{
+				Player: currentPlayer,
 				Action: &proto.Response_Addplayer{
 					Addplayer: &proto.AddPlayer{
 						Position: &proto.Coordinate{X: 10, Y: 10},
@@ -97,6 +93,12 @@ func (s server) Stream(srv proto.Game_streamServer) error {
 			}
 
 			s.Broadcast(&resp)
+
+			s.Mux.Lock()
+			s.Clients[currentPlayer] = &client{
+				StreamServer: srv,
+			}
+			s.Mux.Unlock()
 		}
 
 		if currentPlayer == "" {
@@ -118,6 +120,7 @@ func (s server) Stream(srv proto.Game_streamServer) error {
 			case proto.Move_STOP:
 				s.Game.Players[currentPlayer].Direction = backend.DirectionStop
 			}
+			s.Game.Mux.Unlock()
 		}
 	}
 }
@@ -138,6 +141,22 @@ func main() {
 		Clients: make(map[string]*client),
 	}
 	proto.RegisterGameServer(s, server)
+
+	game.OnPositionChange = func(player *backend.Player) {
+		resp := proto.Response{
+			Player: player.Name,
+			Action: &proto.Response_Updateplayer{
+				Updateplayer: &proto.UpdatePlayer{
+					Position: &proto.Coordinate{
+						X: int32(player.Position.X),
+						Y: int32(player.Position.Y),
+					},
+				},
+			},
+		}
+		log.Print("broadcast update?")
+		server.Broadcast(&resp)
+	}
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
