@@ -14,6 +14,7 @@ type View struct {
 	Game *backend.Game
 	App *tview.Application
 	CurrentPlayer *backend.Player
+	OnDirectionChange func(*backend.Player)
 }
 
 func NewView(game *backend.Game) *View {
