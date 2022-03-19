@@ -5,7 +5,6 @@ import (
 	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
 )
 
-
 func main() {
 	currentPlayer := backend.Player{
 		Position: backend.Coordinate{X: -1, Y: -5},

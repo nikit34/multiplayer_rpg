@@ -12,12 +12,18 @@ message Coordinate {
     int32 y = 2;
 }
 
+message Player {
+    string player = 1;
+    Coordinate position = 2;
+}
+
 message Connect {
     string player = 1;
 }
 
 message Initialize {
     Coordinate position = 1;
+    repeated Player players = 2;
 }
 
 message Move {

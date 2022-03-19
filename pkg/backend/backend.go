@@ -7,8 +7,8 @@ import (
 
 
 type Coordinate struct {
-	X int
-	Y int
+	X int32
+	Y int32
 }
 
 type Direction int32
@@ -67,7 +67,7 @@ func (game *Game) Start() {
 				}
 				player.Direction = DirectionStop
 
-				lastmove[name] = time.Now()			
+				lastmove[name] = time.Now()
 
 				if game.OnPositionChange != nil {
 					game.OnPositionChange(player)

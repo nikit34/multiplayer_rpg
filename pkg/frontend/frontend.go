@@ -40,8 +40,8 @@ func NewView(game *backend.Game) *View {
 			for _, player := range game.Players {
 				player.Mux.Lock()
 				screen.SetContent(
-					centerX + player.Position.X,
-					centerY + player.Position.Y,
+					centerX + int(player.Position.X),
+					centerY + int(player.Position.Y),
 					player.Icon,
 					nil,
 					tcell.StyleDefault.Foreground(tcell.ColorRed),
