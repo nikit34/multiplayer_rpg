@@ -10,7 +10,7 @@ run-server:
 	go run cmd/server.go
 
 proto:
-	protoc --go_out=plugins=grpc:. proto/*.proto
+	protoc --go_out=. --go-grpc_out=. -I=proto proto/*.proto
 
 fmt:
 	gofmt -s -w cmd/*.go proto/*.go

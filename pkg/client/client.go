@@ -7,7 +7,7 @@ import (
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
-	"github.com/nikit34/multiplayer_rpg_go/proto"
+	proto "github.com/nikit34/multiplayer_rpg_go/proto"
 	"google.golang.org/grpc"
 )
 
@@ -63,7 +63,7 @@ func (c *GameClient) Connect(playerName string) {
 	}
 
 	req := proto.Request{
-		Action: &proto.Request_connect{
+		Action: &proto.Request_Connect{
 			Connect: &proto.Connect{
 				Player: playerName,
 			},

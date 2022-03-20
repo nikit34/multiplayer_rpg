@@ -6,12 +6,12 @@ import (
 	"sync"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
-	"github.com/nikit34/multiplayer_rpg_go/proto"
+	proto "github.com/nikit34/multiplayer_rpg_go/proto"
 )
 
 
 type client struct {
-	StreamServer proto.Game_streamServer
+	StreamServer proto.Game_StreamServer
 }
 
 type GameServer struct {

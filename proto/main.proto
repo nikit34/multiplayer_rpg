@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package proto;
 
+option go_package = "./proto";
 
 service Game {
     rpc Stream (stream Request) returns (stream Response) {}
