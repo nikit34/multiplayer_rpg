@@ -14,11 +14,10 @@ func main() {
 	}
 
 	game := backend.NewGame()
-	game.Players = append(game.Players, &currentPlayer)
-	game.CurrentPlayer = &currentPlayer
-
-	app := frontend.NewView(&game)
+	game.Players[currentPlayer.Name] = &currentPlayer
+	view := frontend.NewView(&game)
+	view.CurrentPlayer = &currentPlayer
 
 	game.Start()
-	app.Start()
+	view.Start()
 }
