@@ -6,7 +6,7 @@ import (
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
 	proto "github.com/nikit34/multiplayer_rpg_go/proto"
-	"github.com/nikit34/multiplayer_rpg_go/server"
+	"github.com/nikit34/multiplayer_rpg_go/pkg/server"
 
 	"google.golang.org/grpc"
 )

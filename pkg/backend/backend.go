@@ -7,11 +7,11 @@ import (
 
 
 type Coordinate struct {
-	X int32
-	Y int32
+	X int
+	Y int
 }
 
-type Direction int32
+type Direction int
 
 const (
 	DirectionUp Direction = iota
