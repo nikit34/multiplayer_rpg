@@ -10,7 +10,6 @@ func main() {
 		Position: backend.Coordinate{X: -1, Y: -5},
 		Name: "Alice",
 		Icon: 'A',
-		Direction: backend.DirectionStop,
 	}
 
 	game := backend.NewGame()
