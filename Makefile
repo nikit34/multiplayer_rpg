@@ -13,4 +13,4 @@ proto:
 	protoc --go_out=. --go-grpc_out=. -I=proto proto/*.proto
 
 fmt:
-	gofmt -s -w cmd/*.go proto/*.go
+	gofmt -s -w cmd/*.go proto/*.go pkg/*/*.go
