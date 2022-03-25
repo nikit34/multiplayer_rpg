@@ -14,7 +14,6 @@ type View struct {
 	Game *backend.Game
 	App *tview.Application
 	CurrentPlayer *backend.Player
-	OnDirectionChange func(*backend.Player)
 }
 
 func NewView(game *backend.Game) *View {
@@ -72,9 +71,6 @@ func NewView(game *backend.Game) *View {
 			game.ActionChannel <- backend.MoveAction{
 				PlayerName: view.CurrentPlayer.Name,
 				Direction: direction,
-			}
-			if view.OnDirectionChange != nil {
-				view.OnDirectionChange(view.CurrentPlayer)
 			}
 		}
 		return e
