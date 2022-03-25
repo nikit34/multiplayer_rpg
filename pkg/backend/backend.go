@@ -1,6 +1,8 @@
 package backend
 
 import (
+	"fmt"
+	"math"
 	"sync"
 	"time"
 )
@@ -8,6 +10,7 @@ import (
 
 type Game struct {
 	Players map[string]*Player
+	Lasers []Laser
 	Mux sync.Mutex
 	ChangeChannel chan Change
 	ActionChannel chan Action
@@ -41,6 +44,12 @@ type Player struct {
 	Mux       sync.Mutex
 }
 
+type Laser struct {
+	InitialPosition Coordinate
+	Direction Direction
+	StartTime time.Time
+}
+
 type Change interface{}
 
 type PositionChange struct {
@@ -48,6 +57,23 @@ type PositionChange struct {
 	PlayerName string
 	Direction Direction
 	Position Coordinate
+}
+
+func (laser Laser) GetPosition() Coordinate {
+	difference := time.Now().Sub(laser.StartTime)
+	moves := int(math.Floor(float64(difference.Milliseconds()) / float64(20)))
+	position := laser.InitialPosition
+	switch laser.Direction {
+	case DirectionUp:
+		position.Y -= moves
+	case DirectionDown:
+		position.Y += moves
+	case DirectionLeft:
+		position.X -= moves
+	case DirectionRight:
+		position.X += moves
+	}
+	return position
 }
 
 type Coordinate struct {
@@ -75,23 +101,42 @@ type MoveAction struct {
 	Direction Direction
 }
 
-func (action MoveAction) Perform(game *Game) {
+func (game *Game) GetPlayer(playerName string) *Player {
 	game.Mux.Lock()
 	defer game.Mux.Unlock()
-
-	player, ok := game.Players[action.PlayerName]
+	player, ok := game.Players[playerName]
 	if !ok {
+		return nil
+	}
+	return player
+}
+
+func (game *Game) CheckLastActionTime(actionKey string, throttle int) bool {
+	lastAction, ok := game.LastAction[actionKey]
+	if ok && lastAction.After(time.Now().Add(-1*time.Duration(throttle)*time.Millisecond)) {
+		return false
+	}
+	return true
+}
+
+func (game *Game) UpdateLastActionTime(actionKey string) {
+	game.Mux.Lock()
+	defer game.Mux.Unlock()
+	game.LastAction[actionKey] = time.Now()
+}
+
+func (action MoveAction) Perform(game *Game) {
+	player := game.GetPlayer(action.PlayerName)
+	if player == nil {
+		return
+	}
+	actionKey := fmt.Sprintf("%T_%s", action, action.PlayerName)
+	if !game.CheckLastActionTime(actionKey, 50) {
 		return
 	}
 
 	player.Mux.Lock()
 	defer player.Mux.Unlock()
-	
-	actionKey := "move_" + action.PlayerName
-	lastAction, ok := game.LastAction[actionKey]
-	if ok && lastAction.After(time.Now().Add(-50 * time.Millisecond)) {
-		return
-	}
 
 	switch action.Direction {
 	case DirectionUp:
@@ -105,9 +150,60 @@ func (action MoveAction) Perform(game *Game) {
 	}
 
 	game.LastAction[actionKey] = time.Now()
-	game.ChangeChannel <- PositionChange{
+	
+	change := PositionChange{
 		PlayerName: player.Name,
 		Direction: action.Direction,
 		Position: player.Position,
 	}
+	select {
+	case game.ChangeChannel <- change:
+
+	default:
+
+	}
+
+	game.UpdateLastActionTime(actionKey)
+}
+
+type LaserAction struct {
+	Direction  Direction
+	PlayerName string
+}
+
+func (action LaserAction) Perform(game *Game) {
+	player := game.GetPlayer(action.PlayerName)
+	if player == nil {
+		return
+	}
+	actionKey := fmt.Sprintf("%T_%s", action, action.PlayerName)
+	if !game.CheckLastActionTime(actionKey, 500) {
+		return
+	}
+
+	player.Mux.Lock()
+
+	laser := Laser{
+		InitialPosition: player.Position,
+		StartTime:       time.Now(),
+		Direction:       action.Direction,
+	}
+
+	player.Mux.Unlock()
+	
+	switch action.Direction {
+	case DirectionUp:
+		laser.InitialPosition.Y--
+	case DirectionDown:
+		laser.InitialPosition.Y++
+	case DirectionLeft:
+		laser.InitialPosition.X--
+	case DirectionRight:
+		laser.InitialPosition.X++
+	}
+
+	game.Mux.Lock()
+	game.Lasers = append(game.Lasers, laser)
+	game.Mux.Unlock()
+	game.UpdateLastActionTime(actionKey)
 }

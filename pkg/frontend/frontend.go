@@ -46,6 +46,16 @@ func NewView(game *backend.Game) *View {
 					nil,
 					tcell.StyleDefault.Foreground(tcell.ColorRed),
 				)
+				for _, laser := range game.Lasers {
+					laserPosition := laser.GetPosition()
+					screen.SetContent(
+						centerX + laserPosition.X,
+						centerY + laserPosition.Y,
+						'x',
+						nil,
+						tcell.StyleDefault.Foreground(tcell.ColorYellow),
+					)
+				}
 				player.Mux.Unlock()
 			}
 			return 0, 0, 0, 0
@@ -71,6 +81,24 @@ func NewView(game *backend.Game) *View {
 			game.ActionChannel <- backend.MoveAction{
 				PlayerName: view.CurrentPlayer.Name,
 				Direction: direction,
+			}
+		}
+
+		laserDirection := backend.DirectionStop
+		switch e.Rune() {
+		case 'w':
+			laserDirection = backend.DirectionUp
+		case 's':
+			laserDirection = backend.DirectionDown
+		case 'a':
+			laserDirection = backend.DirectionLeft
+		case 'd':
+			laserDirection = backend.DirectionRight
+		}
+		if laserDirection != backend.DirectionStop {
+			game.ActionChannel <- backend.LaserAction{
+				PlayerName: view.CurrentPlayer.Name,
+				Direction: laserDirection,
 			}
 		}
 		return e
