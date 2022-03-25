@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/client"
+	"github.com/nikit34/multiplayer_rpg_go/proto"
 
 	"google.golang.org/grpc"
 )
@@ -25,7 +27,7 @@ func randSeq(n int) string {
 
 func main() {
 	game := backend.NewGame()
-	view := frontend.NewView(&game)
+	view := frontend.NewView(game)
 
 	game.Start()
 
@@ -36,7 +38,23 @@ func main() {
 		log.Fatalf("can not connect with server %v", err)
 	}
 
-	client := client.NewGameClient(conn, &game, view)
+	grpcClient := proto.NewGameClient(conn)
+	stream, err := grpcClient.Stream(context.Background())
+	ctx := stream.Context()
+
+	go func() {
+		<-ctx.Done()
+		if err := ctx.Err(); err != nil {
+			log.Println(err)
+		}
+		view.App.Stop()
+	}()
+
+	if err != nil {
+		log.Fatalf("openn stream error %v", err)
+	}
+	
+	client := client.NewGameClient(stream, game, view)
 	client.Connect(playerName)
 	client.Start()
 }

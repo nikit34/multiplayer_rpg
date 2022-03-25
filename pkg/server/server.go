@@ -1,7 +1,6 @@
 package server
 
 import (
-	"io"
 	"log"
 	"sync"
 
@@ -21,24 +20,32 @@ type GameServer struct {
 	Mux sync.Mutex
 }
 
-func (s GameServer) Broadcast(resp *proto.Response) {
+func NewGameServer(game *backend.Game) *GameServer {
+	server := &GameServer{
+		Game: game,
+		Clients: make(map[string]*client),
+	}
+	server.WatchChanges()
+	return server
+}
+
+func (s *GameServer) Broadcast(resp *proto.Response) {
 	s.Mux.Lock()
 	for name, client := range s.Clients {
 		if err := client.StreamServer.Send(resp); err != nil {
 			log.Printf("broadcast error %v", err)
 		}
-		log.Printf("broadcasted message to %s", name)
+		log.Printf("broadcasted %+v message to %s", resp, name)
 	}
 	s.Mux.Unlock()
 }
 
-func (s GameServer) HandleConnect(req *proto.Request, srv proto.Game_StreamServer) string {
+func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_StreamServer) string {
 	connect := req.GetConnect()
-	if connect == nil {
-
-	}
 	currentPlayer := connect.GetPlayer()
+
 	s.Game.Mux.Lock()
+
 	players := make([]*proto.Player, 0)
 	for _, player := range s.Game.Players {
 		players = append(players, &proto.Player{
@@ -91,12 +98,11 @@ func (s GameServer) HandleConnect(req *proto.Request, srv proto.Game_StreamServe
 	return currentPlayer
 }
 
-func (s GameServer) HandleMove(currentPlayer string, req *proto.Request, srv proto.Game_StreamServer) {
+func (s *GameServer) HandleMoveRequest(currentPlayer string, req *proto.Request, srv proto.Game_StreamServer) {
 	move := req.GetMove()
-	if move == nil {
 
-	}
 	s.Game.Mux.Lock()
+
 	direction := backend.DirectionStop
 	switch move.Direction {
 	case proto.Move_UP:
@@ -115,7 +121,7 @@ func (s GameServer) HandleMove(currentPlayer string, req *proto.Request, srv pro
 	s.Game.Mux.Unlock()
 }
 
-func (s GameServer) Stream(srv proto.Game_StreamServer) error {
+func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 	log.Println("start server")
 	ctx := srv.Context()
 	currentPlayer := ""
@@ -128,17 +134,13 @@ func (s GameServer) Stream(srv proto.Game_StreamServer) error {
 		}
 
 		req, err := srv.Recv()
-		if err == io.EOF {
-			log.Println("exit")
-			return nil
-		}
 		if err != nil {
 			log.Printf("receive error %v", err)
 			continue
 		}
 
 		if req.GetConnect() != nil {
-			currentPlayer = s.HandleConnect(req, srv)
+			currentPlayer = s.HandleConnectRequest(req, srv)
 		}
 
 		if currentPlayer == "" {
@@ -147,42 +149,35 @@ func (s GameServer) Stream(srv proto.Game_StreamServer) error {
 
 		switch req.GetAction().(type) {
 		case *proto.Request_Move:
-			s.HandleMove(currentPlayer, req, srv)
+			s.HandleMoveRequest(currentPlayer, req, srv)
 		}
 	}
 }
 
-func (s GameServer) WatchChanges() {
+func (s *GameServer) HandlePositionChange(change backend.PositionChange) {
+	resp := proto.Response{
+		Player: change.PlayerName,
+		Action: &proto.Response_Updateplayer{
+			Updateplayer: &proto.UpdatePlayer{
+				Position: &proto.Coordinate{
+					X: int32(change.Position.X), 
+					Y: int32(change.Position.Y),
+				},
+			},
+		},
+	}
+	s.Broadcast(&resp)
+}
+
+func (s *GameServer) WatchChanges() {
 	go func() {
 		for {
 			change := <-s.Game.ChangeChannel
 			switch change.(type) {
 			case backend.PositionChange:
 				change := change.(backend.PositionChange)
-				resp := proto.Response{
-					Player: change.PlayerName,
-					Action: &proto.Response_Updateplayer{
-						Updateplayer: &proto.UpdatePlayer{
-							Position: &proto.Coordinate{
-								X: int32(change.Position.X), 
-								Y: int32(change.Position.Y),
-							},
-						},
-					},
-				}
-				log.Printf("update %s with %v", change.PlayerName, resp)
-				s.Broadcast(&resp)
+				s.HandlePositionChange(change)
 			}
 		}
 	}()
-}
-
-func NewGameServer(game *backend.Game) *GameServer {
-	server := &GameServer{
-		Game: game,
-		Clients: make(map[string]*client),
-	}
-	server.WatchChanges()
-
-	return server
 }

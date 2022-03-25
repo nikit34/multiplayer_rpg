@@ -1,14 +1,12 @@
 package client
 
 import (
-	"context"
 	"io"
 	"log"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
 	proto "github.com/nikit34/multiplayer_rpg_go/proto"
-	"google.golang.org/grpc"
 )
 
 
@@ -19,13 +17,7 @@ type GameClient struct {
 	View *frontend.View
 }
 
-func NewGameClient(conn grpc.ClientConnInterface, game *backend.Game, view *frontend.View) *GameClient {
-	client := proto.NewGameClient(conn)
-	stream, err := client.Stream(context.Background())
-	if err != nil {
-		log.Fatalf("open stream error %v", err)
-	}
-
+func NewGameClient(stream proto.Game_StreamClient, game *backend.Game, view *frontend.View) *GameClient {
 	return &GameClient{
 		Stream: stream,
 		Game: game,
@@ -40,25 +32,7 @@ func (c *GameClient) WatchChanges() {
 			switch change.(type) {
 			case backend.PositionChange:
 				change := change.(backend.PositionChange)
-				direction := proto.Move_STOP
-				switch change.Direction {
-				case backend.DirectionUp:
-					direction = proto.Move_UP
-				case backend.DirectionDown:
-					direction = proto.Move_DOWN
-				case backend.DirectionLeft:
-					direction = proto.Move_LEFT
-				case backend.DirectionRight:
-					direction = proto.Move_RIGHT 
-				}
-				req := proto.Request{
-					Action: &proto.Request_Move{
-						Move: &proto.Move{
-							Direction: direction,
-						},
-					},
-				}
-				c.Stream.Send(&req)
+				c.HandlePositionChange(change)
 			}
 		}
 	}()
@@ -77,64 +51,21 @@ func (c *GameClient) Connect(playerName string) {
 			},
 		},
 	}
-
 	c.Stream.Send(&req)
 }
 
-func (c *GameClient) HandleInitialize(resp *proto.Response) {
-	init := resp.GetInitialize()
-	if init == nil {
-		
-	}
-
-	c.Game.Mux.Lock()
-		c.CurrentPlayer.Position.X = int(init.Position.X)
-		c.CurrentPlayer.Position.Y = int(init.Position.Y)
-		c.Game.Players[c.CurrentPlayer.Name] = c.CurrentPlayer
-		for _, player := range init.Players {
-			c.Game.Players[player.Player] = &backend.Player{
-				Position: backend.Coordinate{
-					X: int(player.Position.X),
-					Y: int(player.Position.Y),
-				},
-				Name:      player.Player,
-				Icon:      'P',
+func (c *GameClient) Start() {
+	go func() {
+		for {
+			change := <-c.Game.ChangeChannel
+			switch change.(type) {
+			case backend.PositionChange:
+				change := change.(backend.PositionChange)
+				c.HandlePositionChange(change)
 			}
 		}
-		c.Game.Mux.Unlock()
-		c.View.CurrentPlayer = c.CurrentPlayer
-}
+	}()
 
-func (c *GameClient) HandleAddPlayer(resp *proto.Response) {
-	add := resp.GetAddplayer()
-	if add == nil {
-
-	}
-
-	newPlayer := backend.Player{
-		Position: backend.Coordinate{
-			X: int(add.Position.X),
-			Y: int(add.Position.Y),
-		},
-		Name:      resp.Player,
-		Icon:      'P',
-	}
-	c.Game.Mux.Lock()
-	c.Game.Players[resp.Player] = &newPlayer
-	c.Game.Mux.Unlock()
-}
-
-func (c *GameClient) HandleUpdatePlayer(resp *proto.Response) {
-	update := resp.GetUpdateplayer()
-	if update != nil && c.Game.Players[resp.Player] != nil {
-		c.Game.Players[resp.Player].Mux.Lock()
-		c.Game.Players[resp.Player].Position.X = int(update.Position.X)
-		c.Game.Players[resp.Player].Position.Y = int(update.Position.Y)
-		c.Game.Players[resp.Player].Mux.Unlock()
-	}
-}
-
-func (c *GameClient) Start() {
 	go func() {
 		for {
 			resp, err := c.Stream.Recv()
@@ -148,12 +79,83 @@ func (c *GameClient) Start() {
 
 			switch resp.GetAction().(type) {
 			case *proto.Response_Initialize:
-				c.HandleInitialize(resp)
+				c.HandleInitializeResponse(resp)
 			case *proto.Response_Addplayer:
-				c.HandleAddPlayer(resp)
+				c.HandleAddPlayerResponse(resp)
 			case *proto.Response_Updateplayer:
-				c.HandleUpdatePlayer(resp)
+				c.HandleUpdatePlayerResponse(resp)
 			}
 		}
 	}()
+}
+
+func (c *GameClient) HandlePositionChange(change backend.PositionChange) {
+	direction := proto.Move_STOP
+	switch change.Direction {
+	case backend.DirectionUp:
+		direction = proto.Move_UP
+	case backend.DirectionDown:
+		direction = proto.Move_DOWN
+	case backend.DirectionLeft:
+		direction = proto.Move_LEFT
+	case backend.DirectionRight:
+		direction = proto.Move_RIGHT 
+	}
+	req := proto.Request{
+		Action: &proto.Request_Move{
+			Move: &proto.Move{
+				Direction: direction,
+			},
+		},
+	}
+	c.Stream.Send(&req)
+}
+
+func (c *GameClient) HandleInitializeResponse(resp *proto.Response) {
+	init := resp.GetInitialize()
+	c.Game.Mux.Lock()
+	c.CurrentPlayer.Position.X = int(init.Position.X)
+	c.CurrentPlayer.Position.Y = int(init.Position.Y)
+	c.Game.Players[c.CurrentPlayer.Name] = c.CurrentPlayer
+	for _, player := range init.Players {
+		c.Game.Players[player.Player] = &backend.Player{
+			Position: backend.Coordinate{
+				X: int(player.Position.X),
+				Y: int(player.Position.Y),
+			},
+			Name:      player.Player,
+			Icon:      'P',
+		}
+	}
+	c.Game.Mux.Unlock()
+	c.View.CurrentPlayer = c.CurrentPlayer
+}
+
+func (c *GameClient) HandleAddPlayerResponse(resp *proto.Response) {
+	add := resp.GetAddplayer()
+	newPlayer := backend.Player{
+		Position: backend.Coordinate{
+			X: int(add.Position.X),
+			Y: int(add.Position.Y),
+		},
+		Name:      resp.Player,
+		Icon:      'P',
+	}
+	c.Game.Mux.Lock()
+	c.Game.Players[resp.Player] = &newPlayer
+	c.Game.Mux.Unlock()
+}
+
+func (c *GameClient) HandleUpdatePlayerResponse(resp *proto.Response) {
+	update := resp.GetUpdateplayer()
+	if c.Game.Players[resp.Player] == nil {
+		return
+	}
+	if resp.Player == c.CurrentPlayer.Name {
+		return
+	}
+	c.Game.Players[resp.Player].Mux.Lock()
+	c.Game.Players[resp.Player].Position.X = int(update.Position.X)
+	c.Game.Players[resp.Player].Position.Y = int(update.Position.Y)
+	c.Game.Players[resp.Player].Mux.Unlock()
 }
