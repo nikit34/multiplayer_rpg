@@ -5,13 +5,15 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 
 type Game struct {
 	Players map[string]*Player
-	Lasers []Laser
-	Mux sync.Mutex
+	Lasers map[uuid.UUID]Laser
+	Mux sync.RWMutex
 	ChangeChannel chan Change
 	ActionChannel chan Action
 	LastAction map[string]time.Time
@@ -24,6 +26,7 @@ func NewGame() *Game {
 		ActionChannel: make(chan Action, 1),
 		LastAction: make(map[string]time.Time),
 		ChangeChannel: make(chan Change, 1),
+		Lasers: make(map[uuid.UUID]Laser),
 	}
 	return &game
 }
@@ -41,13 +44,19 @@ type Player struct {
 	Position  Coordinate
 	Name      string
 	Icon      rune
-	Mux       sync.Mutex
+	Mux       sync.RWMutex
 }
 
 type Laser struct {
 	InitialPosition Coordinate
 	Direction Direction
 	StartTime time.Time
+}
+
+type LaserChange struct {
+	Change
+	UUID uuid.UUID
+	Laser Laser
 }
 
 type Change interface{}
@@ -102,8 +111,8 @@ type MoveAction struct {
 }
 
 func (game *Game) GetPlayer(playerName string) *Player {
-	game.Mux.Lock()
-	defer game.Mux.Unlock()
+	game.Mux.RLock()
+	defer game.Mux.RUnlock()
 	player, ok := game.Players[playerName]
 	if !ok {
 		return nil
@@ -136,7 +145,6 @@ func (action MoveAction) Perform(game *Game) {
 	}
 
 	player.Mux.Lock()
-	defer player.Mux.Unlock()
 
 	switch action.Direction {
 	case DirectionUp:
@@ -156,6 +164,9 @@ func (action MoveAction) Perform(game *Game) {
 		Direction: action.Direction,
 		Position: player.Position,
 	}
+
+	defer player.Mux.Unlock()
+
 	select {
 	case game.ChangeChannel <- change:
 
@@ -181,7 +192,7 @@ func (action LaserAction) Perform(game *Game) {
 		return
 	}
 
-	player.Mux.Lock()
+	player.Mux.RLock()
 
 	laser := Laser{
 		InitialPosition: player.Position,
@@ -189,7 +200,7 @@ func (action LaserAction) Perform(game *Game) {
 		Direction:       action.Direction,
 	}
 
-	player.Mux.Unlock()
+	player.Mux.RUnlock()
 	
 	switch action.Direction {
 	case DirectionUp:
@@ -203,7 +214,21 @@ func (action LaserAction) Perform(game *Game) {
 	}
 
 	game.Mux.Lock()
-	game.Lasers = append(game.Lasers, laser)
+	laserUUID := uuid.New()
+	game.Lasers[laserUUID] = laser
 	game.Mux.Unlock()
+	
+	change := LaserChange{
+		Laser: laser,
+		UUID: laserUUID,
+	}
+
+	select {
+	case game.ChangeChannel <- change:
+
+	default:
+
+	}
+
 	game.UpdateLastActionTime(actionKey)
 }
