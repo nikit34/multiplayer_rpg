@@ -25,7 +25,7 @@ func NewView(game *backend.Game) *View {
 
 	box := tview.NewBox().SetBorder(true).SetTitle("multiplayer-rpg")
 	box.SetDrawFunc(
-		func(screen tcell.Screen, x int, y int, width int, height int) (int, int, int, int) {		
+		func(screen tcell.Screen, x int, y int, width int, height int) (int, int, int, int) {
 			view.Game.Mux.RLock()
 			defer view.Game.Mux.RUnlock()
 
@@ -116,7 +116,6 @@ func NewView(game *backend.Game) *View {
 	app.SetRoot(box, true).SetFocus(box)
 	return view
 }
-
 
 func (view *View) Start() error {
 	go func() {

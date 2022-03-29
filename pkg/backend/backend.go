@@ -10,34 +10,15 @@ import (
 )
 
 
-type Game struct {
-	Players map[string]*Player
-	Lasers map[uuid.UUID]Laser
-	Mux sync.RWMutex
-	ChangeChannel chan Change
-	ActionChannel chan Action
-	LastAction map[string]time.Time
+type LaserChange struct {
+	Change
+	UUID uuid.UUID
+	Laser Laser
 }
 
-
-func NewGame() *Game {
-	game := Game{
-		Players: make(map[string]*Player),
-		ActionChannel: make(chan Action, 1),
-		LastAction: make(map[string]time.Time),
-		ChangeChannel: make(chan Change, 1),
-		Lasers: make(map[uuid.UUID]Laser),
-	}
-	return &game
-}
-
-func (game *Game) Start() {
-	go func() {
-		for {
-			action := <-game.ActionChannel
-			action.Perform(game)
-		}
-	}()
+type Coordinate struct {
+	X int
+	Y int
 }
 
 type Player struct {
@@ -45,49 +26,6 @@ type Player struct {
 	Name      string
 	Icon      rune
 	Mux       sync.RWMutex
-}
-
-type Laser struct {
-	InitialPosition Coordinate
-	Direction Direction
-	StartTime time.Time
-}
-
-type LaserChange struct {
-	Change
-	UUID uuid.UUID
-	Laser Laser
-}
-
-type Change interface{}
-
-type PositionChange struct {
-	Change
-	PlayerName string
-	Direction Direction
-	Position Coordinate
-}
-
-func (laser Laser) GetPosition() Coordinate {
-	difference := time.Now().Sub(laser.StartTime)
-	moves := int(math.Floor(float64(difference.Milliseconds()) / float64(20)))
-	position := laser.InitialPosition
-	switch laser.Direction {
-	case DirectionUp:
-		position.Y -= moves
-	case DirectionDown:
-		position.Y += moves
-	case DirectionLeft:
-		position.X -= moves
-	case DirectionRight:
-		position.X += moves
-	}
-	return position
-}
-
-type Coordinate struct {
-	X int
-	Y int
 }
 
 type Direction int
@@ -100,15 +38,13 @@ const (
 	DirectionStop
 )
 
-type Action interface {
-	Perform(game *Game)
+type Laser struct {
+	InitialPosition Coordinate
+	Direction Direction
+	StartTime time.Time
 }
 
-type MoveAction struct {
-	Action
-	PlayerName string
-	Direction Direction
-}
+type Change interface{}
 
 func (game *Game) GetPlayer(playerName string) *Player {
 	game.Mux.RLock()
@@ -132,6 +68,19 @@ func (game *Game) UpdateLastActionTime(actionKey string) {
 	game.Mux.Lock()
 	defer game.Mux.Unlock()
 	game.LastAction[actionKey] = time.Now()
+}
+
+type MoveAction struct {
+	Action
+	PlayerName string
+	Direction Direction
+}
+
+type PositionChange struct {
+	Change
+	PlayerName string
+	Direction Direction
+	Position Coordinate
 }
 
 func (action MoveAction) Perform(game *Game) {
@@ -158,7 +107,7 @@ func (action MoveAction) Perform(game *Game) {
 	}
 
 	game.LastAction[actionKey] = time.Now()
-	
+
 	change := PositionChange{
 		PlayerName: player.Name,
 		Direction: action.Direction,
@@ -201,7 +150,7 @@ func (action LaserAction) Perform(game *Game) {
 	}
 
 	player.Mux.RUnlock()
-	
+
 	switch action.Direction {
 	case DirectionUp:
 		laser.InitialPosition.Y--
@@ -217,7 +166,7 @@ func (action LaserAction) Perform(game *Game) {
 	laserUUID := uuid.New()
 	game.Lasers[laserUUID] = laser
 	game.Mux.Unlock()
-	
+
 	change := LaserChange{
 		Laser: laser,
 		UUID: laserUUID,
@@ -231,4 +180,54 @@ func (action LaserAction) Perform(game *Game) {
 	}
 
 	game.UpdateLastActionTime(actionKey)
+}
+
+type Action interface {
+	Perform(game *Game)
+}
+
+type Game struct {
+	Players map[string]*Player
+	Lasers map[uuid.UUID]Laser
+	Mux sync.RWMutex
+	ChangeChannel chan Change
+	ActionChannel chan Action
+	LastAction map[string]time.Time
+}
+
+func NewGame() *Game {
+	game := Game{
+		Players: make(map[string]*Player),
+		ActionChannel: make(chan Action, 1),
+		LastAction: make(map[string]time.Time),
+		ChangeChannel: make(chan Change, 1),
+		Lasers: make(map[uuid.UUID]Laser),
+	}
+	return &game
+}
+
+func (game *Game) Start() {
+	go func() {
+		for {
+			action := <-game.ActionChannel
+			action.Perform(game)
+		}
+	}()
+}
+
+func (laser Laser) GetPosition() Coordinate {
+	difference := time.Now().Sub(laser.StartTime)
+	moves := int(math.Floor(float64(difference.Milliseconds()) / float64(20)))
+	position := laser.InitialPosition
+	switch laser.Direction {
+	case DirectionUp:
+		position.Y -= moves
+	case DirectionDown:
+		position.Y += moves
+	case DirectionLeft:
+		position.X -= moves
+	case DirectionRight:
+		position.X += moves
+	}
+	return position
 }
