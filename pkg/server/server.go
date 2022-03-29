@@ -22,15 +22,6 @@ type GameServer struct {
 	Mux sync.RWMutex
 }
 
-func NewGameServer(game *backend.Game) *GameServer {
-	server := &GameServer{
-		Game: game,
-		Clients: make(map[string]*client),
-	}
-	server.WatchChanges()
-	return server
-}
-
 func (s *GameServer) Broadcast(resp *proto.Response) {
 	s.Mux.RLock()
 	for name, client := range s.Clients {
@@ -42,7 +33,104 @@ func (s *GameServer) Broadcast(resp *proto.Response) {
 	s.Mux.RUnlock()
 }
 
-func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_StreamServer) string {	
+func (s *GameServer) HandlePositionChange(change backend.PositionChange) {
+	resp := proto.Response{
+		Player: change.PlayerName,
+		Action: &proto.Response_Updateplayer{
+			Updateplayer: &proto.UpdatePlayer{
+				Position: &proto.Coordinate{
+					X: int32(change.Position.X),
+					Y: int32(change.Position.Y),
+				},
+			},
+		},
+	}
+	s.Broadcast(&resp)
+}
+
+func (s *GameServer) HandleLaserChange(change backend.LaserChange) {
+	timestamp, err := ptypes.TimestampProto(change.Laser.StartTime)
+	if err != nil {
+		return
+	}
+
+	direction := proto.Laser_STOP
+
+	switch change.Laser.Direction {
+	case backend.DirectionUp:
+		direction = proto.Laser_UP
+	case backend.DirectionDown:
+		direction = proto.Laser_DOWN
+	case backend.DirectionLeft:
+		direction = proto.Laser_LEFT
+	case backend.DirectionRight:
+		direction = proto.Laser_RIGHT
+	default:
+		return
+	}
+
+	position := change.Laser.GetPosition()
+
+	resp := proto.Response{
+		Action: &proto.Response_Addlaser{
+			Addlaser: &proto.AddLaser{
+				Starttime: timestamp,
+				Position:  &proto.Coordinate{X: int32(position.X), Y: int32(position.Y)},
+				Laser: &proto.Laser{
+					Direction: direction,
+					Uuid:      change.UUID.String(),
+				},
+			},
+		},
+	}
+	s.Broadcast(&resp)
+}
+
+func (s *GameServer) WatchChanges() {
+	go func() {
+		for {
+			change := <-s.Game.ChangeChannel
+			switch change.(type) {
+			case backend.PositionChange:
+				change := change.(backend.PositionChange)
+				s.HandlePositionChange(change)
+			case backend.LaserChange:
+				change := change.(backend.LaserChange)
+				s.HandleLaserChange(change)
+			}
+		}
+	}()
+}
+
+func NewGameServer(game *backend.Game) *GameServer {
+	server := &GameServer{
+		Game: game,
+		Clients: make(map[string]*client),
+	}
+	server.WatchChanges()
+	return server
+}
+
+func (s *GameServer) RemoveClient(playerName string, srv proto.Game_StreamServer) {
+	s.Mux.Lock()
+	delete(s.Clients, playerName)
+	s.Mux.Unlock()
+
+	s.Game.Mux.Lock()
+	delete(s.Game.Players, playerName)
+	delete(s.Game.LastAction, playerName)
+	s.Game.Mux.Unlock()
+	
+	resp := proto.Response{
+		Player: playerName,
+		Action: &proto.Response_Removeplayer{
+			Removeplayer: &proto.RemovePlayer{},
+		},
+	}
+	s.Broadcast(&resp)
+}
+
+func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_StreamServer) string {
 	s.Game.Mux.Lock()
 
 	connect := req.GetConnect()
@@ -104,6 +192,7 @@ func (s *GameServer) HandleMoveRequest(currentPlayer string, req *proto.Request,
 	move := req.GetMove()
 
 	direction := backend.DirectionStop
+
 	switch move.Direction {
 	case proto.Move_UP:
 		direction = backend.DirectionUp
@@ -123,6 +212,7 @@ func (s *GameServer) HandleMoveRequest(currentPlayer string, req *proto.Request,
 func (s *GameServer) HandleLaserRequest(currentPlayer string, req *proto.Request, srv proto.Game_StreamServer) {
 	move := req.GetLaser()
 	direction := backend.DirectionStop
+
 	switch move.Direction {
 	case proto.Laser_UP:
 		direction = backend.DirectionUp
@@ -137,23 +227,6 @@ func (s *GameServer) HandleLaserRequest(currentPlayer string, req *proto.Request
 		PlayerName: currentPlayer,
 		Direction:  direction,
 	}
-}
-
-func (s *GameServer) RemoveClient(playerName string, srv proto.Game_StreamServer) {
-	s.Mux.Lock()
-	delete(s.Clients, playerName)
-	s.Mux.Unlock()
-	s.Game.Mux.Lock()
-	delete(s.Game.Players, playerName)
-	delete(s.Game.LastAction, playerName)
-	s.Game.Mux.Unlock()
-	resp := proto.Response{
-		Player: playerName,
-		Action: &proto.Response_Removeplayer{
-			Removeplayer: &proto.RemovePlayer{},
-		},
-	}
-	s.Broadcast(&resp)
 }
 
 func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
@@ -187,74 +260,9 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 
 		switch req.GetAction().(type) {
 		case *proto.Request_Move:
-			s.HandleMoveRequest(currentPlayer, req, srv)		
+			s.HandleMoveRequest(currentPlayer, req, srv)
 		case *proto.Request_Laser:
 			s.HandleLaserRequest(currentPlayer, req, srv)
 		}
 	}
-}
-
-func (s *GameServer) HandlePositionChange(change backend.PositionChange) {
-	resp := proto.Response{
-		Player: change.PlayerName,
-		Action: &proto.Response_Updateplayer{
-			Updateplayer: &proto.UpdatePlayer{
-				Position: &proto.Coordinate{
-					X: int32(change.Position.X), 
-					Y: int32(change.Position.Y),
-				},
-			},
-		},
-	}
-	s.Broadcast(&resp)
-}
-
-func (s *GameServer) HandleLaserChange(change backend.LaserChange) {
-	timestamp, err := ptypes.TimestampProto(change.Laser.StartTime)
-	if err != nil {
-		return
-	}
-	direction := proto.Laser_STOP
-	switch change.Laser.Direction {
-	case backend.DirectionUp:
-		direction = proto.Laser_UP
-	case backend.DirectionDown:
-		direction = proto.Laser_DOWN
-	case backend.DirectionLeft:
-		direction = proto.Laser_LEFT
-	case backend.DirectionRight:
-		direction = proto.Laser_RIGHT
-	default:
-		return
-	}
-	position := change.Laser.GetPosition()
-	resp := proto.Response{
-		Action: &proto.Response_Addlaser{
-			Addlaser: &proto.AddLaser{
-				Starttime: timestamp,
-				Position:  &proto.Coordinate{X: int32(position.X), Y: int32(position.Y)},
-				Laser: &proto.Laser{
-					Direction: direction,
-					Uuid:      change.UUID.String(),
-				},
-			},
-		},
-	}
-	s.Broadcast(&resp)
-}
-
-func (s *GameServer) WatchChanges() {
-	go func() {
-		for {
-			change := <-s.Game.ChangeChannel
-			switch change.(type) {
-			case backend.PositionChange:
-				change := change.(backend.PositionChange)
-				s.HandlePositionChange(change)			
-			case backend.LaserChange:
-				change := change.(backend.LaserChange)
-				s.HandleLaserChange(change)
-			}
-		}
-	}()
 }
