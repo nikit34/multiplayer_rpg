@@ -7,27 +7,8 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "./proto";
 
-service Game {
-    rpc Stream (stream Request) returns (stream Response) {}
-}
-
-message Coordinate {
-    int32 x = 1;
-    int32 y = 2;
-}
-
-message Player {
-    string player = 1;
-    Coordinate position = 2;
-}
-
 message Connect {
     string player = 1;
-}
-
-message Initialize {
-    Coordinate position = 1;
-    repeated Player players = 2;
 }
 
 message Move {
@@ -53,6 +34,29 @@ message Laser {
     string uuid = 2;
 }
 
+message Request {
+    oneof action {
+        Connect connect = 1;
+        Move move = 2;
+        Laser laser = 3;
+    }
+}
+
+message Coordinate {
+    int32 x = 1;
+    int32 y = 2;
+}
+
+message Player {
+    string player = 1;
+    Coordinate position = 2;
+}
+
+message Initialize {
+    Coordinate position = 1;
+    repeated Player players = 2;
+}
+
 message AddPlayer {
     Coordinate position = 1;
 }
@@ -69,14 +73,6 @@ message AddLaser {
     google.protobuf.Timestamp starttime = 3;
 }
 
-message Request {
-    oneof action {
-        Connect connect = 1;
-        Move move = 2;
-        Laser laser = 3;
-    }
-}
-
 message Response {
     string player = 1;
     oneof action {
@@ -87,4 +83,8 @@ message Response {
         RemovePlayer removeplayer = 6;
         AddLaser addlaser = 7;
     }
+}
+
+service Game {
+    rpc Stream (stream Request) returns (stream Response) {}
 }
