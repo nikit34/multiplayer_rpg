@@ -37,7 +37,6 @@ type Identifier interface {
 }
 
 type IdentifierBase struct {
-	Identifier
 	UUID uuid.UUID
 }
 
@@ -108,8 +107,8 @@ func (game *Game) CheckLastActionTime(actionKey string, throttle int) bool {
 
 func (game *Game) UpdateLastActionTime(actionKey string) {
 	game.Mu.Lock()
-	defer game.Mu.Unlock()
 	game.LastAction[actionKey] = time.Now()
+	game.Mu.Unlock()
 }
 
 type MoveAction struct {
@@ -186,7 +185,7 @@ func (action LaserAction) Perform(game *Game) {
 		InitialPosition: entity.(Positioner).Position(),
 		StartTime:       time.Now(),
 		Direction:       action.Direction,
-		IdentifierBase: IdentifierBase{UUID: uuid.New()},
+		IdentifierBase:  IdentifierBase{uuid.New()},
 	}
 
 	switch action.Direction {
@@ -200,7 +199,7 @@ func (action LaserAction) Perform(game *Game) {
 		laser.InitialPosition.X++
 	}
 
-	game.AddEntity(laser)
+	game.AddEntity(&laser)
 
 	change := LaserChange{
 		Laser: laser,

@@ -26,8 +26,8 @@ func NewView(game *backend.Game) *View {
 	box := tview.NewBox().SetBorder(true).SetTitle("multiplayer-rpg")
 	box.SetDrawFunc(
 		func(screen tcell.Screen, x int, y int, width int, height int) (int, int, int, int) {
-			view.Game.Mux.RLock()
-			defer view.Game.Mux.RUnlock()
+			view.Game.Mu.RLock()
+			defer view.Game.Mu.RUnlock()
 
 			width = width - 1
 			height = height - 1
@@ -40,25 +40,33 @@ func NewView(game *backend.Game) *View {
 				}
 			}
 			screen.SetContent(centerX, centerY, 'O', nil, tcell.StyleDefault.Foreground(tcell.ColorWhite))
-			for _, player := range view.Game.Players {
-				player.Mux.RLock()
+			for _, entity := range view.Game.Entities {
+				positioner, ok := entity.(backend.Positioner)
+				if !ok {
+					continue
+				}
+				position := positioner.Position()
+
+				var icon rune
+				var color tcell.Color
+
+				switch entity.(type) {
+				case *backend.Player:
+					icon = entity.(*backend.Player).Icon
+					color = tcell.ColorGreen
+				case *backend.Laser:
+					icon = 'x'
+					color = tcell.ColorRed
+				default:
+					continue
+				}
+
 				screen.SetContent(
-					centerX + int(player.Position.X),
-					centerY + int(player.Position.Y),
-					player.Icon,
+					centerX + position.X,
+					centerY + position.Y,
+					icon,
 					nil,
-					tcell.StyleDefault.Foreground(tcell.ColorRed),
-				)
-				player.Mux.RUnlock()
-			}
-			for _, laser := range view.Game.Lasers {
-				laserPosition := laser.GetPosition()
-				screen.SetContent(
-					centerX + laserPosition.X,
-					centerY + laserPosition.Y,
-					'x',
-					nil,
-					tcell.StyleDefault.Foreground(tcell.ColorYellow),
+					tcell.StyleDefault.Foreground(color),
 				)
 			}
 			return 0, 0, 0, 0
@@ -70,10 +78,8 @@ func NewView(game *backend.Game) *View {
 			return e
 		}
 
-		view.Game.Mux.RLock()
-		defer view.Game.Mux.RUnlock()
-		view.CurrentPlayer.Mux.RLock()
-		defer view.CurrentPlayer.Mux.RUnlock()
+		view.Game.Mu.RLock()
+		defer view.Game.Mu.RUnlock()
 
 		direction := backend.DirectionStop
 		switch e.Key() {
@@ -88,8 +94,8 @@ func NewView(game *backend.Game) *View {
 		}
 		if direction != backend.DirectionStop {
 			view.Game.ActionChannel <- backend.MoveAction{
-				PlayerName: view.CurrentPlayer.Name,
-				Direction: direction,
+				ID:         view.CurrentPlayer.ID(),
+				Direction:  direction,
 			}
 		}
 
@@ -106,8 +112,8 @@ func NewView(game *backend.Game) *View {
 		}
 		if laserDirection != backend.DirectionStop {
 			view.Game.ActionChannel <- backend.LaserAction{
-				PlayerName: view.CurrentPlayer.Name,
-				Direction: laserDirection,
+				OwnerID:    view.CurrentPlayer.ID(),
+				Direction:  laserDirection,
 			}
 		}
 		return e
