@@ -38,10 +38,7 @@ func (s *GameServer) HandlePositionChange(change backend.PositionChange) {
 		Player: change.PlayerName,
 		Action: &proto.Response_Updateplayer{
 			Updateplayer: &proto.UpdatePlayer{
-				Position: &proto.Coordinate{
-					X: int32(change.Position.X),
-					Y: int32(change.Position.Y),
-				},
+				Position: proto.GetProtoCoordinate(change.Position),
 			},
 		},
 	}
@@ -54,8 +51,6 @@ func (s *GameServer) HandleLaserChange(change backend.LaserChange) {
 		return
 	}
 
-	position := change.Laser.GetPosition()
-
 	resp := proto.Response{
 		Action: &proto.Response_Addlaser{
 			Addlaser: &proto.AddLaser{
@@ -63,7 +58,7 @@ func (s *GameServer) HandleLaserChange(change backend.LaserChange) {
 					Direction: proto.GetProtoDirection(change.Laser.Direction),
 					Uuid:      change.UUID.String(),
 					Starttime: timestamp,
-					Position:  &proto.Coordinate{X: int32(position.X), Y: int32(position.Y)},
+					Position:  proto.GetProtoCoordinate(change.Laser.GetPosition()),
 				},
 			},
 		},
@@ -124,10 +119,7 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 	for _, player := range s.Game.Players {
 		players = append(players, &proto.Player{
 			Player: player.Name,
-			Position: &proto.Coordinate{
-				X: int32(player.Position.X),
-				Y: int32(player.Position.Y),
-			},
+			Position: proto.GetProtoCoordinate(player.Position),
 		})
 	}
 
@@ -142,10 +134,7 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 			Direction: proto.GetProtoDirection(laser.Direction),
 			Uuid: uuid.String(),
 			Starttime: starttime,
-			Position: &proto.Coordinate{
-				X: int32(laser.InitialPosition.X),
-				Y: int32(laser.InitialPosition.Y),
-			},
+			Position: proto.GetProtoCoordinate(laser.InitialPosition),
 		})
 	}
 	s.Game.Mux.RUnlock()
