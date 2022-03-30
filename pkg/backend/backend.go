@@ -2,7 +2,6 @@ package backend
 
 import (
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -48,16 +47,6 @@ type Mover interface {
 	Move(Coordinate)
 }
 
-type Player struct {
-	IdentifierBase
-	Positioner
-	Mover
-	position Coordinate
-	Name      string
-	Icon      rune
-	State     PlayerState
-	Mux       sync.RWMutex
-}
 
 type Direction int
 
@@ -68,14 +57,6 @@ const (
 	DirectionRight
 	DirectionStop
 )
-
-type Laser struct {
-	IdentifierBase
-	Positioner
-	InitialPosition Coordinate
-	Direction Direction
-	StartTime time.Time
-}
 
 type Change interface{}
 
@@ -165,56 +146,6 @@ func (action MoveAction) Perform(game *Game) {
 	game.UpdateLastActionTime(actionKey)
 }
 
-type LaserAction struct {
-	Direction  Direction
-	OwnerID    uuid.UUID
-}
-
-func (action LaserAction) Perform(game *Game) {
-	entity := game.GetEntity(action.OwnerID)
-	if entity == nil {
-		return
-	}
-
-	actionKey := fmt.Sprintf("%T:%s", action, entity.ID().String())
-	if !game.CheckLastActionTime(actionKey, 500) {
-		return
-	}
-
-	laser := Laser{
-		InitialPosition: entity.(Positioner).Position(),
-		StartTime:       time.Now(),
-		Direction:       action.Direction,
-		IdentifierBase:  IdentifierBase{uuid.New()},
-	}
-
-	switch action.Direction {
-	case DirectionUp:
-		laser.InitialPosition.Y--
-	case DirectionDown:
-		laser.InitialPosition.Y++
-	case DirectionLeft:
-		laser.InitialPosition.X--
-	case DirectionRight:
-		laser.InitialPosition.X++
-	}
-
-	game.AddEntity(&laser)
-
-	change := LaserChange{
-		Laser: laser,
-		ID: laser.ID(),
-	}
-
-	select {
-	case game.ChangeChannel <- change:
-
-	default:
-
-	}
-
-	game.UpdateLastActionTime(actionKey)
-}
 
 type Action interface {
 	Perform(game *Game)
@@ -236,12 +167,6 @@ func NewGame() *Game {
 		ChangeChannel: make(chan Change, 1),
 	}
 	return &game
-}
-
-type PlayerKilledChange struct {
-	Change
-	PlayerName string
-	SpawnPosition Coordinate
 }
 
 type LaserRemoveChange struct {
@@ -305,29 +230,4 @@ func (game *Game) Start() {
 			time.Sleep(time.Millisecond * 20)
 		}
 	}()
-}
-
-func (laser *Laser) Position() Coordinate {
-	difference := time.Now().Sub(laser.StartTime)
-	moves := int(math.Floor(float64(difference.Milliseconds()) / float64(20)))
-	position := laser.InitialPosition
-	switch laser.Direction {
-	case DirectionUp:
-		position.Y -= moves
-	case DirectionDown:
-		position.Y += moves
-	case DirectionLeft:
-		position.X -= moves
-	case DirectionRight:
-		position.X += moves
-	}
-	return position
-}
-
-func (p *Player) Position() Coordinate {
-	return p.position
-}
-
-func (p *Player) Move(c Coordinate) {
-	p.position = c
 }
