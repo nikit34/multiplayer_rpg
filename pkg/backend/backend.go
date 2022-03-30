@@ -21,10 +21,18 @@ type Coordinate struct {
 	Y int
 }
 
+type PlayerState int
+
+const (
+	PlayerAlive PlayerState = iota
+	PlayerDead
+)
+
 type Player struct {
 	Position  Coordinate
 	Name      string
 	Icon      rune
+	State     PlayerState
 	Mux       sync.RWMutex
 }
 
@@ -206,11 +214,71 @@ func NewGame() *Game {
 	return &game
 }
 
+type PlayerKilledChange struct {
+	Change
+	PlayerName string
+	SpawnPosition Coordinate
+}
+
+type LaserRemoveChange struct {
+	Change
+	UUID uuid.UUID
+}
+
 func (game *Game) Start() {
 	go func() {
 		for {
 			action := <-game.ActionChannel
 			action.Perform(game)
+		}
+	}()
+
+	go func() {
+		for {
+			game.Mux.Lock()
+			for id, laser := range game.Lasers {
+				laserPosition := laser.GetPosition()
+				didCollide := false
+				for _, player := range game.Players {
+					player.Mux.Lock()
+
+					if player.Position.X == laserPosition.X && player.Position.Y == laserPosition.Y {
+						didCollide = true
+						player.Position.X = 0
+						player.Position.Y = 0
+						change := PlayerKilledChange{
+							PlayerName: player.Name,
+							SpawnPosition: player.Position,
+						}
+
+						player.Mux.Unlock()
+						select {
+						case game.ChangeChannel <- change:
+
+						default:
+
+						}
+					} else {
+						player.Mux.Unlock()
+					}
+				}
+				if didCollide {
+					delete(game.Lasers, id)
+
+					change:= LaserRemoveChange{
+						UUID: id,
+					}
+
+					select {
+					case game.ChangeChannel <- change:
+
+					default:
+
+					}
+				}
+			}
+			game.Mux.Unlock()
+			time.Sleep(time.Millisecond * 20)
 		}
 	}()
 }

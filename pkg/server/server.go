@@ -66,6 +66,29 @@ func (s *GameServer) HandleLaserChange(change backend.LaserChange) {
 	s.Broadcast(&resp)
 }
 
+func (s *GameServer) HandleLaserRemoveChange(change backend.LaserRemoveChange) {
+	resp := proto.Response{
+		Action: &proto.Response_Removelaser{
+			Removelaser: &proto.RemoveLaser{
+				Uuid: change.UUID.String(),
+			},
+		},
+	}
+	s.Broadcast(&resp)
+}
+
+func (s *GameServer) HandlePlayerKilledChange(change backend.PlayerKilledChange) {
+	resp := proto.Response{
+		Player: change.PlayerName,
+		Action: &proto.Response_Playerkilled{
+			Playerkilled: &proto.PlayerKilled{
+				SpawnPosition: proto.GetProtoCoordinate(change.SpawnPosition),
+			},
+		},
+	}
+	s.Broadcast(&resp)
+}
+
 func (s *GameServer) WatchChanges() {
 	go func() {
 		for {
@@ -77,6 +100,12 @@ func (s *GameServer) WatchChanges() {
 			case backend.LaserChange:
 				change := change.(backend.LaserChange)
 				s.HandleLaserChange(change)
+			case backend.LaserRemoveChange:
+				change := change.(backend.LaserRemoveChange)
+				s.HandleLaserRemoveChange(change)
+			case backend.PlayerKilledChange:
+				change := change.(backend.PlayerKilledChange)
+				s.HandlePlayerKilledChange(change)
 			}
 		}
 	}()
@@ -139,10 +168,12 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 	}
 	s.Game.Mux.RUnlock()
 
+	startCoordinate := backend.Coordinate{X: 0, Y: 0}
+
 	resp := proto.Response{
 		Action: &proto.Response_Initialize{
 			Initialize: &proto.Initialize{
-				Position: &proto.Coordinate{X: 10, Y: 10},
+				Position: proto.GetProtoCoordinate(startCoordinate),
 				Players:  players,
 				Lasers: lasers,
 			},
@@ -157,7 +188,7 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 
 	s.Game.Mux.Lock()
 	s.Game.Players[currentPlayer] = &backend.Player{
-		Position: backend.Coordinate{X: 10, Y: 10},
+		Position: startCoordinate,
 		Name: currentPlayer,
 		Icon: 'P',
 	}
@@ -167,7 +198,7 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 		Player: currentPlayer,
 		Action: &proto.Response_Addplayer{
 			Addplayer: &proto.AddPlayer{
-				Position: &proto.Coordinate{X: 10, Y: 10},
+				Position: proto.GetProtoCoordinate(startCoordinate),
 			},
 		},
 	}

@@ -68,6 +68,14 @@ message AddLaser {
     Laser laser = 1;
 }
 
+message RemoveLaser {
+    string uuid = 1;
+}
+
+message PlayerKilled {
+    Coordinate spawnPosition = 1;
+}
+
 message Response {
     string player = 1;
     oneof action {
@@ -77,6 +85,8 @@ message Response {
         UpdatePlayer updateplayer = 5;
         RemovePlayer removeplayer = 6;
         AddLaser addlaser = 7;
+        RemoveLaser removeLaser = 8;
+        PlayerKilled playerKilled = 9;
     }
 }
 
