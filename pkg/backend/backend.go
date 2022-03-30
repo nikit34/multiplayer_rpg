@@ -12,7 +12,7 @@ import (
 
 type LaserChange struct {
 	Change
-	UUID uuid.UUID
+	ID uuid.UUID
 	Laser Laser
 }
 
@@ -28,8 +28,32 @@ const (
 	PlayerDead
 )
 
+func (e IdentifierBase) ID() uuid.UUID {
+	return e.UUID
+}
+
+type Identifier interface {
+	ID() uuid.UUID
+}
+
+type IdentifierBase struct {
+	Identifier
+	UUID uuid.UUID
+}
+
+type Positioner interface {
+	Position() Coordinate
+}
+
+type Mover interface {
+	Move(Coordinate)
+}
+
 type Player struct {
-	Position  Coordinate
+	IdentifierBase
+	Positioner
+	Mover
+	position Coordinate
 	Name      string
 	Icon      rune
 	State     PlayerState
@@ -47,6 +71,8 @@ const (
 )
 
 type Laser struct {
+	IdentifierBase
+	Positioner
 	InitialPosition Coordinate
 	Direction Direction
 	StartTime time.Time
@@ -54,14 +80,22 @@ type Laser struct {
 
 type Change interface{}
 
-func (game *Game) GetPlayer(playerName string) *Player {
-	game.Mux.RLock()
-	defer game.Mux.RUnlock()
-	player, ok := game.Players[playerName]
-	if !ok {
-		return nil
-	}
-	return player
+func (game *Game) AddEntity(entity Identifier) {
+	game.Mu.Lock()
+	game.Entities[entity.ID()] = entity
+	game.Mu.Unlock()
+}
+
+func (game *Game) GetEntity(id uuid.UUID) Identifier {
+	game.Mu.RLock()
+	defer game.Mu.RUnlock()
+	return game.Entities[id]
+}
+
+func (game *Game) RemoveEntity(id uuid.UUID) {
+	game.Mu.Lock()
+	delete(game.Entities, id)
+	game.Mu.Unlock()
 }
 
 func (game *Game) CheckLastActionTime(actionKey string, throttle int) bool {
@@ -73,56 +107,54 @@ func (game *Game) CheckLastActionTime(actionKey string, throttle int) bool {
 }
 
 func (game *Game) UpdateLastActionTime(actionKey string) {
-	game.Mux.Lock()
-	defer game.Mux.Unlock()
+	game.Mu.Lock()
+	defer game.Mu.Unlock()
 	game.LastAction[actionKey] = time.Now()
 }
 
 type MoveAction struct {
-	Action
-	PlayerName string
+	ID uuid.UUID
 	Direction Direction
 }
 
 type PositionChange struct {
 	Change
-	PlayerName string
+	ID uuid.UUID
 	Direction Direction
 	Position Coordinate
 }
 
 func (action MoveAction) Perform(game *Game) {
-	player := game.GetPlayer(action.PlayerName)
-	if player == nil {
+	entity := game.GetEntity(action.ID)
+	if entity == nil {
 		return
 	}
-	actionKey := fmt.Sprintf("%T_%s", action, action.PlayerName)
+
+	actionKey := fmt.Sprintf("%T:%s", action, entity.ID().String())
 	if !game.CheckLastActionTime(actionKey, 50) {
 		return
 	}
 
-	player.Mux.Lock()
+	position := entity.(Positioner).Position()
 
 	switch action.Direction {
 	case DirectionUp:
-		player.Position.Y--
+		position.Y--
 	case DirectionDown:
-		player.Position.Y++
+		position.Y++
 	case DirectionLeft:
-		player.Position.X--
+		position.X--
 	case DirectionRight:
-		player.Position.X++
+		position.X++
 	}
+	entity.(Mover).Move(position)
 
-	game.LastAction[actionKey] = time.Now()
 
 	change := PositionChange{
-		PlayerName: player.Name,
+		ID: entity.ID(),
 		Direction: action.Direction,
-		Position: player.Position,
+		Position: position,
 	}
-
-	defer player.Mux.Unlock()
 
 	select {
 	case game.ChangeChannel <- change:
@@ -136,28 +168,26 @@ func (action MoveAction) Perform(game *Game) {
 
 type LaserAction struct {
 	Direction  Direction
-	PlayerName string
+	OwnerID    uuid.UUID
 }
 
 func (action LaserAction) Perform(game *Game) {
-	player := game.GetPlayer(action.PlayerName)
-	if player == nil {
+	entity := game.GetEntity(action.OwnerID)
+	if entity == nil {
 		return
 	}
-	actionKey := fmt.Sprintf("%T_%s", action, action.PlayerName)
+
+	actionKey := fmt.Sprintf("%T:%s", action, entity.ID().String())
 	if !game.CheckLastActionTime(actionKey, 500) {
 		return
 	}
 
-	player.Mux.RLock()
-
 	laser := Laser{
-		InitialPosition: player.Position,
+		InitialPosition: entity.(Positioner).Position(),
 		StartTime:       time.Now(),
 		Direction:       action.Direction,
+		IdentifierBase: IdentifierBase{UUID: uuid.New()},
 	}
-
-	player.Mux.RUnlock()
 
 	switch action.Direction {
 	case DirectionUp:
@@ -170,14 +200,11 @@ func (action LaserAction) Perform(game *Game) {
 		laser.InitialPosition.X++
 	}
 
-	game.Mux.Lock()
-	laserUUID := uuid.New()
-	game.Lasers[laserUUID] = laser
-	game.Mux.Unlock()
+	game.AddEntity(laser)
 
 	change := LaserChange{
 		Laser: laser,
-		UUID: laserUUID,
+		ID: laser.ID(),
 	}
 
 	select {
@@ -195,9 +222,8 @@ type Action interface {
 }
 
 type Game struct {
-	Players map[string]*Player
-	Lasers map[uuid.UUID]Laser
-	Mux sync.RWMutex
+	Entities map[uuid.UUID]Identifier
+	Mu sync.RWMutex
 	ChangeChannel chan Change
 	ActionChannel chan Action
 	LastAction map[string]time.Time
@@ -205,11 +231,10 @@ type Game struct {
 
 func NewGame() *Game {
 	game := Game{
-		Players: make(map[string]*Player),
+		Entities: make(map[uuid.UUID]Identifier),
 		ActionChannel: make(chan Action, 1),
 		LastAction: make(map[string]time.Time),
 		ChangeChannel: make(chan Change, 1),
-		Lasers: make(map[uuid.UUID]Laser),
 	}
 	return &game
 }
@@ -222,7 +247,7 @@ type PlayerKilledChange struct {
 
 type LaserRemoveChange struct {
 	Change
-	UUID uuid.UUID
+	ID uuid.UUID
 }
 
 func (game *Game) Start() {
@@ -235,55 +260,55 @@ func (game *Game) Start() {
 
 	go func() {
 		for {
-			game.Mux.Lock()
-			for id, laser := range game.Lasers {
-				laserPosition := laser.GetPosition()
-				didCollide := false
-				for _, player := range game.Players {
-					player.Mux.Lock()
+			// game.Mux.Lock()
+			// for id, laser := range game.Lasers {
+			// 	laserPosition := laser.GetPosition()
+			// 	didCollide := false
+			// 	for _, player := range game.Players {
+			// 		player.Mux.Lock()
 
-					if player.Position.X == laserPosition.X && player.Position.Y == laserPosition.Y {
-						didCollide = true
-						player.Position.X = 0
-						player.Position.Y = 0
-						change := PlayerKilledChange{
-							PlayerName: player.Name,
-							SpawnPosition: player.Position,
-						}
+			// 		if player.Position.X == laserPosition.X && player.Position.Y == laserPosition.Y {
+			// 			didCollide = true
+			// 			player.Position.X = 0
+			// 			player.Position.Y = 0
+			// 			change := PlayerKilledChange{
+			// 				PlayerName: player.Name,
+			// 				SpawnPosition: player.Position,
+			// 			}
 
-						player.Mux.Unlock()
-						select {
-						case game.ChangeChannel <- change:
+			// 			player.Mux.Unlock()
+			// 			select {
+			// 			case game.ChangeChannel <- change:
 
-						default:
+			// 			default:
 
-						}
-					} else {
-						player.Mux.Unlock()
-					}
-				}
-				if didCollide {
-					delete(game.Lasers, id)
+			// 			}
+			// 		} else {
+			// 			player.Mux.Unlock()
+			// 		}
+			// 	}
+			// 	if didCollide {
+			// 		delete(game.Lasers, id)
 
-					change:= LaserRemoveChange{
-						UUID: id,
-					}
+			// 		change:= LaserRemoveChange{
+			// 			UUID: id,
+			// 		}
 
-					select {
-					case game.ChangeChannel <- change:
+			// 		select {
+			// 		case game.ChangeChannel <- change:
 
-					default:
+			// 		default:
 
-					}
-				}
-			}
-			game.Mux.Unlock()
+			// 		}
+			// 	}
+			// }
+			// game.Mux.Unlock()
 			time.Sleep(time.Millisecond * 20)
 		}
 	}()
 }
 
-func (laser Laser) GetPosition() Coordinate {
+func (laser *Laser) Position() Coordinate {
 	difference := time.Now().Sub(laser.StartTime)
 	moves := int(math.Floor(float64(difference.Milliseconds()) / float64(20)))
 	position := laser.InitialPosition
@@ -298,4 +323,12 @@ func (laser Laser) GetPosition() Coordinate {
 		position.X += moves
 	}
 	return position
+}
+
+func (p *Player) Position() Coordinate {
+	return p.position
+}
+
+func (p *Player) Move(c Coordinate) {
+	p.position = c
 }
