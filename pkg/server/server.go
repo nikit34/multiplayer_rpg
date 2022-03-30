@@ -59,11 +59,11 @@ func (s *GameServer) HandleLaserChange(change backend.LaserChange) {
 	resp := proto.Response{
 		Action: &proto.Response_Addlaser{
 			Addlaser: &proto.AddLaser{
-				Starttime: timestamp,
-				Position:  &proto.Coordinate{X: int32(position.X), Y: int32(position.Y)},
 				Laser: &proto.Laser{
 					Direction: proto.GetProtoDirection(change.Laser.Direction),
 					Uuid:      change.UUID.String(),
+					Starttime: timestamp,
+					Position:  &proto.Coordinate{X: int32(position.X), Y: int32(position.Y)},
 				},
 			},
 		},
@@ -116,12 +116,11 @@ func (s *GameServer) RemoveClient(playerName string, srv proto.Game_StreamServer
 }
 
 func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_StreamServer) string {
-	s.Game.Mux.Lock()
-
 	connect := req.GetConnect()
 	currentPlayer := connect.GetPlayer()
-
 	players := make([]*proto.Player, 0)
+
+	s.Game.Mux.RLock()
 	for _, player := range s.Game.Players {
 		players = append(players, &proto.Player{
 			Player: player.Name,
@@ -131,18 +130,32 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 			},
 		})
 	}
-	s.Game.Players[currentPlayer] = &backend.Player{
-		Position:  backend.Coordinate{X: 10, Y: 10},
-		Name:      currentPlayer,
-		Icon:      'P',
+
+	lasers := make([]*proto.Laser, 0)
+	for uuid, laser := range s.Game.Lasers {
+		starttime, err := ptypes.TimestampProto(laser.StartTime)
+		if err != nil {
+			continue
+		}
+
+		lasers = append(lasers, &proto.Laser{
+			Direction: proto.GetProtoDirection(laser.Direction),
+			Uuid: uuid.String(),
+			Starttime: starttime,
+			Position: &proto.Coordinate{
+				X: int32(laser.InitialPosition.X),
+				Y: int32(laser.InitialPosition.Y),
+			},
+		})
 	}
-	s.Game.Mux.Unlock()
+	s.Game.Mux.RUnlock()
 
 	resp := proto.Response{
 		Action: &proto.Response_Initialize{
 			Initialize: &proto.Initialize{
 				Position: &proto.Coordinate{X: 10, Y: 10},
 				Players:  players,
+				Lasers: lasers,
 			},
 		},
 	}
@@ -152,6 +165,14 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 	}
 
 	log.Printf("sent initialize message for %v", currentPlayer)
+
+	s.Game.Mux.Lock()
+	s.Game.Players[currentPlayer] = &backend.Player{
+		Position: backend.Coordinate{X: 10, Y: 10},
+		Name: currentPlayer,
+		Icon: 'P',
+	}
+	s.Game.Mux.Unlock()
 
 	resp = proto.Response{
 		Player: currentPlayer,

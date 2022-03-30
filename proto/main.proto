@@ -26,6 +26,8 @@ message Move {
 message Laser {
     Direction direction = 1;
     string uuid = 2;
+    google.protobuf.Timestamp starttime = 3;
+    Coordinate position = 4;
 }
 
 message Request {
@@ -49,6 +51,7 @@ message Player {
 message Initialize {
     Coordinate position = 1;
     repeated Player players = 2;
+    repeated Laser lasers = 3;
 }
 
 message AddPlayer {
@@ -63,8 +66,6 @@ message RemovePlayer {}
 
 message AddLaser {
     Laser laser = 1;
-    Coordinate position = 2;
-    google.protobuf.Timestamp starttime = 3;
 }
 
 message Response {
