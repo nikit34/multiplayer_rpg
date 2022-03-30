@@ -45,23 +45,10 @@ func (c *GameClient) Connect(playerName string) {
 }
 
 func (c *GameClient) HandlePositionChange(change backend.PositionChange) {
-	direction := proto.Move_STOP
-
-	switch change.Direction {
-	case backend.DirectionUp:
-		direction = proto.Move_UP
-	case backend.DirectionDown:
-		direction = proto.Move_DOWN
-	case backend.DirectionLeft:
-		direction = proto.Move_LEFT
-	case backend.DirectionRight:
-		direction = proto.Move_RIGHT
-	}
-
 	req := proto.Request{
 		Action: &proto.Request_Move{
 			Move: &proto.Move{
-				Direction: direction,
+				Direction: proto.GetProtoDirection(change.Direction),
 			},
 		},
 	}
@@ -69,24 +56,10 @@ func (c *GameClient) HandlePositionChange(change backend.PositionChange) {
 }
 
 func (c *GameClient) HandleLaserChange(change backend.LaserChange) {
-	direction := proto.Laser_STOP
-	switch change.Laser.Direction {
-	case backend.DirectionUp:
-		direction = proto.Laser_UP
-	case backend.DirectionDown:
-		direction = proto.Laser_DOWN
-	case backend.DirectionLeft:
-		direction = proto.Laser_LEFT
-	case backend.DirectionRight:
-		direction = proto.Laser_RIGHT
-	default:
-		return
-	}
-
 	req := proto.Request{
 		Action: &proto.Request_Laser{
 			Laser: &proto.Laser{
-				Direction: direction,
+				Direction: proto.GetProtoDirection(change.Laser.Direction),
 				Uuid:      change.UUID.String(),
 			},
 		},
@@ -165,21 +138,6 @@ func (c *GameClient) HandleAddLaser(resp *proto.Response) {
 		return
 	}
 
-	direction := backend.DirectionStop
-
-	switch protoLaser.Direction {
-	case proto.Laser_UP:
-		direction = backend.DirectionUp
-	case proto.Laser_DOWN:
-		direction = backend.DirectionDown
-	case proto.Laser_LEFT:
-		direction = backend.DirectionLeft
-	case proto.Laser_RIGHT:
-		direction = backend.DirectionRight
-	default:
-		return
-	}
-
 	startTime, err := ptypes.Timestamp(addLaser.Starttime)
 	if err != nil {
 		return
@@ -188,7 +146,7 @@ func (c *GameClient) HandleAddLaser(resp *proto.Response) {
 	c.Game.Mux.Lock()
 	c.Game.Lasers[uuid] = backend.Laser{
 		InitialPosition: backend.Coordinate{X: int(addLaser.Position.X), Y: int(addLaser.Position.Y)},
-		Direction:       direction,
+		Direction:       proto.GetBackendDirection(protoLaser.Direction),
 		StartTime:       startTime,
 	}
 
@@ -199,7 +157,7 @@ func (c *GameClient) Start() {
 	go func() {
 		for {
 			change := <-c.Game.ChangeChannel
-			
+
 			switch change.(type) {
 			case backend.PositionChange:
 				change := change.(backend.PositionChange)

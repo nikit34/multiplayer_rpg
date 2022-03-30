@@ -54,21 +54,6 @@ func (s *GameServer) HandleLaserChange(change backend.LaserChange) {
 		return
 	}
 
-	direction := proto.Laser_STOP
-
-	switch change.Laser.Direction {
-	case backend.DirectionUp:
-		direction = proto.Laser_UP
-	case backend.DirectionDown:
-		direction = proto.Laser_DOWN
-	case backend.DirectionLeft:
-		direction = proto.Laser_LEFT
-	case backend.DirectionRight:
-		direction = proto.Laser_RIGHT
-	default:
-		return
-	}
-
 	position := change.Laser.GetPosition()
 
 	resp := proto.Response{
@@ -77,7 +62,7 @@ func (s *GameServer) HandleLaserChange(change backend.LaserChange) {
 				Starttime: timestamp,
 				Position:  &proto.Coordinate{X: int32(position.X), Y: int32(position.Y)},
 				Laser: &proto.Laser{
-					Direction: direction,
+					Direction: proto.GetProtoDirection(change.Laser.Direction),
 					Uuid:      change.UUID.String(),
 				},
 			},
@@ -120,7 +105,7 @@ func (s *GameServer) RemoveClient(playerName string, srv proto.Game_StreamServer
 	delete(s.Game.Players, playerName)
 	delete(s.Game.LastAction, playerName)
 	s.Game.Mux.Unlock()
-	
+
 	resp := proto.Response{
 		Player: playerName,
 		Action: &proto.Response_Removeplayer{
@@ -191,41 +176,18 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 func (s *GameServer) HandleMoveRequest(currentPlayer string, req *proto.Request, srv proto.Game_StreamServer) {
 	move := req.GetMove()
 
-	direction := backend.DirectionStop
-
-	switch move.Direction {
-	case proto.Move_UP:
-		direction = backend.DirectionUp
-	case proto.Move_DOWN:
-		direction = backend.DirectionDown
-	case proto.Move_LEFT:
-		direction = backend.DirectionLeft
-	case proto.Move_RIGHT:
-		direction = backend.DirectionRight
-	}
 	s.Game.ActionChannel <- backend.MoveAction{
 		PlayerName: currentPlayer,
-		Direction: direction,
+		Direction:  proto.GetBackendDirection(move.Direction),
 	}
 }
 
 func (s *GameServer) HandleLaserRequest(currentPlayer string, req *proto.Request, srv proto.Game_StreamServer) {
 	move := req.GetLaser()
-	direction := backend.DirectionStop
 
-	switch move.Direction {
-	case proto.Laser_UP:
-		direction = backend.DirectionUp
-	case proto.Laser_DOWN:
-		direction = backend.DirectionDown
-	case proto.Laser_LEFT:
-		direction = backend.DirectionLeft
-	case proto.Laser_RIGHT:
-		direction = backend.DirectionRight
-	}
 	s.Game.ActionChannel <- backend.LaserAction{
 		PlayerName: currentPlayer,
-		Direction:  direction,
+		Direction:  proto.GetBackendDirection(move.Direction),
 	}
 }
 
