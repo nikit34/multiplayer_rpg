@@ -103,6 +103,31 @@ func (c *GameClient) HandleInitializeResponse(resp *proto.Response) {
 	c.View.CurrentPlayer = c.CurrentPlayer
 }
 
+func (c *GameClient) HandleAddEntityChange(change backend.LaserChange) {
+	switch change.Entity.(type) {
+	case backend.Laser:
+		laser := change.Entity.(backend.Laser)
+		timestamp, err := ptypes.TimestampProto(laser.StartTime)
+		if err != nil {
+			return
+		}
+
+		req := proto.Request{
+			Action: &proto.Request_Laser{
+				Laser: &proto.Laser{
+					Direction: proto.GetProtoDirection(laser.Direction),
+					Id:      laser.ID().String(),
+					Starttime: timestamp,
+					InitialPosition: proto.GetProtoCoordinate(laser.InitialPosition),
+				},
+			},
+		}
+		c.Stream.Send(&req)
+	default:
+		return
+	}
+}
+
 func (c *GameClient) HandleAddPlayerResponse(resp *proto.Response) {
 	add := resp.GetAddplayer()
 	newPlayer := backend.Player{
