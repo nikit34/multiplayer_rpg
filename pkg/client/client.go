@@ -14,7 +14,7 @@ import (
 
 
 type GameClient struct {
-	CurrentPlayer *backend.Player
+	CurrentPlayer uuid.UUID
 	Stream proto.Game_StreamClient
 	Game *backend.Game
 	View *frontend.View
@@ -68,19 +68,9 @@ func (c *GameClient) HandleLaserChange(change backend.LaserChange) {
 }
 
 func (c *GameClient) HandleInitializeResponse(resp *proto.Response) {
-	c.Game.Mux.Lock()
-	defer c.Game.Mux.Unlock()
-
 	init := resp.GetInitialize()
-	c.CurrentPlayer.Position = proto.GetBackendCoordinate(init.Position)
-
-	c.Game.Players[c.CurrentPlayer.Name] = c.CurrentPlayer
-	for _, player := range init.Players {
-		c.Game.Players[player.Player] = &backend.Player{
-			Position:  proto.GetBackendCoordinate(player.Position),
-			Name:      player.Player,
-			Icon:      'P',
-		}
+	for _, entity := range init.Entities {
+		c.Game.AddEntity(proto.GetBackendEntity(entity))
 	}
 
 	for _, laser := range init.Lasers {
@@ -107,11 +97,7 @@ func (c *GameClient) HandleAddEntityChange(change backend.LaserChange) {
 	switch change.Entity.(type) {
 	case backend.Laser:
 		laser := change.Entity.(backend.Laser)
-		timestamp, err := ptypes.TimestampProto(laser.StartTime)
-		if err != nil {
-			return
-		}
-
+		
 		req := proto.Request{
 			Action: &proto.Request_Laser{
 				Laser: &proto.Laser{
@@ -243,18 +229,12 @@ func (c *GameClient) Start() {
 			switch resp.GetAction().(type) {
 			case *proto.Response_Initialize:
 				c.HandleInitializeResponse(resp)
-			case *proto.Response_Addplayer:
-				c.HandleAddPlayerResponse(resp)
-			case *proto.Response_Updateplayer:
-				c.HandleUpdatePlayerResponse(resp)
-			case *proto.Response_Removeplayer:
-				c.HandleRemovePlayerResponse(resp)
-			case *proto.Response_Addlaser:
-				c.HandleAddLaserResponse(resp)
-			case *proto.Response_Removelaser:
-				c.HandleRemoveLaserResponse(resp)
-			case *proto.Response_Playerkilled:
-				c.HandlePlayerKilledResponse(resp)
+			case *proto.Response_AddEntity:
+				c.HandleAddEntity(resp)
+			case *proto.Response_UpdateEntity:
+				c.HandleUpdateEntity(resp)
+			case *proto.Response_RemoveEntity:
+				c.HandleRemoveEntity(resp)
 			}
 		}
 	}()
