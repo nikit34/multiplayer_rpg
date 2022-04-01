@@ -7,21 +7,15 @@ type Player struct {
 	IdentifierBase
 	Positioner
 	Mover
-	position Coordinate
+	CurrentPosition Coordinate
 	Name     string
 	Icon     rune
 }
 
 func (p *Player) Position() Coordinate {
-	return p.position
+	return p.CurrentPosition
 }
 
 func (p *Player) Move(c Coordinate) {
-	p.position = c
-}
-
-type PlayerKilledChange struct {
-	Change
-	ID            uuid.UUID
-	SpawnPosition Coordinate
+	p.CurrentPosition = c
 }
