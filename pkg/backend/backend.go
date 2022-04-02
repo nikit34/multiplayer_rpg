@@ -8,10 +8,9 @@ import (
 	"github.com/google/uuid"
 )
 
-
 type LaserChange struct {
 	Change
-	ID uuid.UUID
+	ID    uuid.UUID
 	Laser Laser
 }
 
@@ -46,7 +45,6 @@ type Positioner interface {
 type Mover interface {
 	Move(Coordinate)
 }
-
 
 type Direction int
 
@@ -102,15 +100,15 @@ func (game *Game) UpdateLastActionTime(actionKey string) {
 }
 
 type MoveAction struct {
-	ID uuid.UUID
+	ID        uuid.UUID
 	Direction Direction
 }
 
 type MoveChange struct {
 	Change
-	Entity Identifier
+	Entity    Identifier
 	Direction Direction
-	Position Coordinate
+	Position  Coordinate
 }
 
 type AddEntityChange struct {
@@ -149,9 +147,9 @@ func (action MoveAction) Perform(game *Game) {
 	entity.(Mover).Move(position)
 
 	change := MoveChange{
-		Entity: entity,
+		Entity:    entity,
 		Direction: action.Direction,
-		Position: position,
+		Position:  position,
 	}
 
 	select {
@@ -164,26 +162,25 @@ func (action MoveAction) Perform(game *Game) {
 	game.UpdateLastActionTime(actionKey)
 }
 
-
 type Action interface {
 	Perform(game *Game)
 }
 
 type Game struct {
-	Entities map[uuid.UUID]Identifier
-	Mu sync.RWMutex
-	ChangeChannel chan Change
-	ActionChannel chan Action
-	LastAction map[string]time.Time
+	Entities        map[uuid.UUID]Identifier
+	Mu              sync.RWMutex
+	ChangeChannel   chan Change
+	ActionChannel   chan Action
+	LastAction      map[string]time.Time
 	IsAuthoritative bool
 }
 
 func NewGame() *Game {
 	game := Game{
-		Entities: make(map[uuid.UUID]Identifier),
-		ActionChannel: make(chan Action, 1),
-		LastAction: make(map[string]time.Time),
-		ChangeChannel: make(chan Change, 1),
+		Entities:        make(map[uuid.UUID]Identifier),
+		ActionChannel:   make(chan Action, 1),
+		LastAction:      make(map[string]time.Time),
+		ChangeChannel:   make(chan Change, 1),
 		IsAuthoritative: true,
 	}
 	return &game

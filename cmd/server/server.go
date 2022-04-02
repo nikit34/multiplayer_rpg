@@ -5,12 +5,11 @@ import (
 	"net"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
-	proto "github.com/nikit34/multiplayer_rpg_go/proto"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/server"
+	proto "github.com/nikit34/multiplayer_rpg_go/proto"
 
 	"google.golang.org/grpc"
 )
-
 
 func main() {
 	lis, err := net.Listen("tcp", ":8888")

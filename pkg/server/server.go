@@ -11,16 +11,15 @@ import (
 	proto "github.com/nikit34/multiplayer_rpg_go/proto"
 )
 
-
 type client struct {
 	StreamServer proto.Game_StreamServer
 }
 
 type GameServer struct {
 	proto.UnimplementedGameServer
-	Game 		*backend.Game
-	Clients 	map[uuid.UUID]*client
-	Mux 		sync.RWMutex
+	Game    *backend.Game
+	Clients map[uuid.UUID]*client
+	Mux     sync.RWMutex
 }
 
 func (s *GameServer) Broadcast(resp *proto.Response) {
@@ -88,7 +87,7 @@ func (s *GameServer) WatchChanges() {
 
 func NewGameServer(game *backend.Game) *GameServer {
 	server := &GameServer{
-		Game: game,
+		Game:    game,
 		Clients: make(map[uuid.UUID]*client),
 	}
 	server.WatchChanges()
@@ -120,8 +119,8 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 
 	}
 	player := &backend.Player{
-		Name: connect.Name,
-		Icon: 'P',
+		Name:           connect.Name,
+		Icon:           'P',
 		IdentifierBase: backend.IdentifierBase{UUID: playerID},
 	}
 
@@ -177,8 +176,8 @@ func (s *GameServer) HandleMoveRequest(playerID uuid.UUID, req *proto.Request, s
 	move := req.GetMove()
 
 	s.Game.ActionChannel <- backend.MoveAction{
-		ID: playerID,
-		Direction:  proto.GetBackendDirection(move.Direction),
+		ID:        playerID,
+		Direction: proto.GetBackendDirection(move.Direction),
 	}
 }
 
@@ -186,8 +185,8 @@ func (s *GameServer) HandleLaserRequest(playerID uuid.UUID, req *proto.Request, 
 	move := req.GetLaser()
 
 	s.Game.ActionChannel <- backend.LaserAction{
-		OwnerID: playerID,
-		Direction:  proto.GetBackendDirection(move.Direction),
+		OwnerID:   playerID,
+		Direction: proto.GetBackendDirection(move.Direction),
 	}
 }
 

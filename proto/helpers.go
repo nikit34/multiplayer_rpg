@@ -9,7 +9,6 @@ import (
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
 )
 
-
 func GetBackendDirection(protoDirection Direction) backend.Direction {
 	direction := backend.DirectionStop
 	switch protoDirection {
@@ -64,8 +63,8 @@ func GetBackendEntity(protoEntity *Entity) backend.Identifier {
 		}
 		player := &backend.Player{
 			IdentifierBase: backend.IdentifierBase{UUID: entityID},
-			Name: protoPlayer.Name,
-			Icon: 'P',
+			Name:           protoPlayer.Name,
+			Icon:           'P',
 		}
 		player.Move(GetBackendCoordinate(protoPlayer.Position))
 		return player
@@ -80,10 +79,10 @@ func GetBackendEntity(protoEntity *Entity) backend.Identifier {
 			return nil
 		}
 		laser := &backend.Laser{
-			IdentifierBase: backend.IdentifierBase{UUID: entityID},
+			IdentifierBase:  backend.IdentifierBase{UUID: entityID},
 			InitialPosition: GetBackendCoordinate(protoLaser.InitialPosition),
-			Direction: GetBackendDirection(protoLaser.Direction),
-			StartTime: timestamp,
+			Direction:       GetBackendDirection(protoLaser.Direction),
+			StartTime:       timestamp,
 		}
 		return laser
 	}
@@ -123,6 +122,6 @@ func GetProtoLaser(laser *backend.Laser) *Laser {
 		Id:              laser.ID().String(),
 		StartTime:       timestamp,
 		InitialPosition: GetProtoCoordinate(laser.InitialPosition),
-		Direction: GetProtoDirection(laser.Direction),
+		Direction:       GetProtoDirection(laser.Direction),
 	}
 }

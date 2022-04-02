@@ -11,19 +11,18 @@ import (
 	proto "github.com/nikit34/multiplayer_rpg_go/proto"
 )
 
-
 type GameClient struct {
 	CurrentPlayer uuid.UUID
-	Stream proto.Game_StreamClient
-	Game *backend.Game
-	View *frontend.View
+	Stream        proto.Game_StreamClient
+	Game          *backend.Game
+	View          *frontend.View
 }
 
 func NewGameClient(stream proto.Game_StreamClient, game *backend.Game, view *frontend.View) *GameClient {
 	return &GameClient{
 		Stream: stream,
-		Game: game,
-		View: view,
+		Game:   game,
+		View:   view,
 	}
 }
 
@@ -34,7 +33,7 @@ func (c *GameClient) Connect(playerID uuid.UUID, playerName string) {
 	req := proto.Request{
 		Action: &proto.Request_Connect{
 			Connect: &proto.Connect{
-				Id: playerID.String(),
+				Id:   playerID.String(),
 				Name: playerName,
 			},
 		},

@@ -10,20 +10,19 @@ import (
 	"github.com/rivo/tview"
 )
 
-
 type View struct {
-	Game *backend.Game
-	App *tview.Application
+	Game          *backend.Game
+	App           *tview.Application
 	CurrentPlayer uuid.UUID
-	Paused bool
+	Paused        bool
 }
 
 func NewView(game *backend.Game) *View {
 	app := tview.NewApplication()
 	view := &View{
-		Game: game,
+		Game:   game,
 		Paused: false,
-		App: app,
+		App:    app,
 	}
 
 	box := tview.NewBox().SetBorder(true).SetTitle("multiplayer-rpg")
@@ -34,8 +33,8 @@ func NewView(game *backend.Game) *View {
 
 			width = width - 1
 			height = height - 1
-			centerY := y + height / 2
-			centerX := x + width / 2
+			centerY := y + height/2
+			centerX := x + width/2
 
 			for x := 1; x < width; x++ {
 				for y := 1; y < height; y++ {
@@ -65,8 +64,8 @@ func NewView(game *backend.Game) *View {
 				}
 
 				screen.SetContent(
-					centerX + position.X,
-					centerY + position.Y,
+					centerX+position.X,
+					centerY+position.Y,
 					icon,
 					nil,
 					tcell.StyleDefault.Foreground(color),
@@ -94,8 +93,8 @@ func NewView(game *backend.Game) *View {
 		}
 		if direction != backend.DirectionStop {
 			view.Game.ActionChannel <- backend.MoveAction{
-				ID:         view.CurrentPlayer,
-				Direction:  direction,
+				ID:        view.CurrentPlayer,
+				Direction: direction,
 			}
 		}
 
@@ -112,8 +111,8 @@ func NewView(game *backend.Game) *View {
 		}
 		if laserDirection != backend.DirectionStop {
 			view.Game.ActionChannel <- backend.LaserAction{
-				OwnerID:    view.CurrentPlayer,
-				Direction:  laserDirection,
+				OwnerID:   view.CurrentPlayer,
+				Direction: laserDirection,
 			}
 		}
 		return e

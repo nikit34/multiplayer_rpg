@@ -8,13 +8,12 @@ import (
 	"github.com/google/uuid"
 )
 
-
 type Laser struct {
 	IdentifierBase
 	Positioner
 	InitialPosition Coordinate
-	Direction Direction
-	StartTime time.Time
+	Direction       Direction
+	StartTime       time.Time
 }
 
 func (laser *Laser) Position() Coordinate {
@@ -36,8 +35,8 @@ func (laser *Laser) Position() Coordinate {
 }
 
 type LaserAction struct {
-	Direction  Direction
-	OwnerID    uuid.UUID
+	Direction Direction
+	OwnerID   uuid.UUID
 }
 
 func (action LaserAction) Perform(game *Game) {

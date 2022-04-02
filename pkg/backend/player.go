@@ -1,13 +1,12 @@
 package backend
 
-
 type Player struct {
 	IdentifierBase
 	Positioner
 	Mover
 	CurrentPosition Coordinate
-	Name     string
-	Icon     rune
+	Name            string
+	Icon            rune
 }
 
 func (p *Player) Position() Coordinate {
