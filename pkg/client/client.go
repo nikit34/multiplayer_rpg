@@ -56,7 +56,11 @@ func (c *GameClient) HandlePositionChange(change backend.PositionChange) {
 func (c *GameClient) HandleInitializeResponse(resp *proto.Response) {
 	init := resp.GetInitialize()
 	for _, entity := range init.Entities {
-		c.Game.AddEntity(proto.GetBackendEntity(entity))
+		backendEntity := proto.GetBackendEntity(entity)
+		if backendEntity == nil {
+			return
+		}
+		c.Game.AddEntity(backendEntity)
 	}
 	c.View.CurrentPlayer = c.CurrentPlayer
 	c.View.Paused = false
@@ -64,8 +68,8 @@ func (c *GameClient) HandleInitializeResponse(resp *proto.Response) {
 
 func (c *GameClient) HandleAddEntityChange(change backend.AddEntityChange) {
 	switch change.Entity.(type) {
-	case backend.Laser:
-		laser := change.Entity.(backend.Laser)
+	case *backend.Laser:
+		laser := change.Entity.(*backend.Laser)
 		req := proto.Request{
 			Action: &proto.Request_Laser{
 				Laser: proto.GetProtoEntity(laser).GetLaser(),
@@ -80,12 +84,18 @@ func (c *GameClient) HandleAddEntityChange(change backend.AddEntityChange) {
 func (c *GameClient) HandleAddEntityResponse(resp *proto.Response) {
 	add := resp.GetAddEntity()
 	entity := proto.GetBackendEntity(add.Entity)
+	if entity == nil {
+		return
+	}
 	c.Game.AddEntity(entity)
 }
 
 func (c *GameClient) HandleUpdateEntityResponse(resp *proto.Response) {
 	update := resp.GetUpdateEntity()
 	entity := proto.GetBackendEntity(update.Entity)
+	if entity == nil {
+		return
+	}
 	c.Game.UpdateEntity(entity)
 }
 

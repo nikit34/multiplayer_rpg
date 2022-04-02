@@ -1,6 +1,8 @@
 package proto
 
 import (
+	"log"
+	
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 
@@ -66,6 +68,7 @@ func GetBackendEntity(protoEntity *Entity) backend.Identifier {
 			Icon: 'P',
 		}
 		player.Move(GetBackendCoordinate(protoPlayer.Position))
+		return player
 	case *Entity_Laser:
 		protoLaser := protoEntity.Entity.(*Entity_Laser).Laser
 		entityID, err := uuid.Parse(protoLaser.Id)
@@ -84,12 +87,13 @@ func GetBackendEntity(protoEntity *Entity) backend.Identifier {
 		}
 		return laser
 	}
+	log.Fatalf("Cannot get backend entity for %T -> %+v", protoEntity, protoEntity)
 	return nil
 }
 
 func GetProtoEntity(entity backend.Identifier) *Entity {
 	switch entity.(type) {
-	case backend.Player:
+	case *backend.Player:
 		player := entity.(backend.Player)
 		protoPlayer := Entity_Player{
 			Player: &Player{
@@ -99,7 +103,7 @@ func GetProtoEntity(entity backend.Identifier) *Entity {
 			},
 		}
 		return &Entity{Entity: &protoPlayer}
-	case backend.Laser:
+	case *backend.Laser:
 		laser := entity.(backend.Laser)
 		timestamp, err := ptypes.TimestampProto(laser.StartTime)
 		if err != nil {
@@ -110,9 +114,11 @@ func GetProtoEntity(entity backend.Identifier) *Entity {
 				Id:              laser.ID().String(),
 				StartTime:       timestamp,
 				InitialPosition: GetProtoCoordinate(laser.InitialPosition),
+				Direction: GetProtoDirection(laser.Direction),
 			},
 		}
 		return &Entity{Entity: &protoLaser}
 	}
+	log.Fatalf("Cannot get proto entity for %T -> %+v", entity, entity)
 	return nil
 }

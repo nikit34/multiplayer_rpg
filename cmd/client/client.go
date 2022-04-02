@@ -59,10 +59,11 @@ func main() {
 		log.Fatalf("openn stream error %v", err)
 	}
 
-	playerID := uuid.New()
 	client := client.NewGameClient(stream, game, view)
+	client.Start()
+
+	playerID := uuid.New()
 	client.Connect(playerID, playerName)
 
-	client.Start()
 	view.Start()
 }
