@@ -17,7 +17,7 @@ type Laser struct {
 }
 
 func (laser *Laser) Position() Coordinate {
-	difference := time.Now().Sub(laser.StartTime)
+	difference := time.Since(laser.StartTime)
 	moves := int(math.Floor(float64(difference.Milliseconds()) / float64(20)))
 	position := laser.InitialPosition
 
@@ -36,6 +36,7 @@ func (laser *Laser) Position() Coordinate {
 
 type LaserAction struct {
 	Direction Direction
+	ID uuid.UUID
 	OwnerID   uuid.UUID
 }
 
@@ -54,7 +55,7 @@ func (action LaserAction) Perform(game *Game) {
 		InitialPosition: entity.(Positioner).Position(),
 		StartTime:       time.Now(),
 		Direction:       action.Direction,
-		IdentifierBase:  IdentifierBase{uuid.New()},
+		IdentifierBase:  IdentifierBase{action.ID},
 	}
 
 	switch action.Direction {

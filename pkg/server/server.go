@@ -196,11 +196,16 @@ func (s *GameServer) HandleMoveRequest(playerID uuid.UUID, req *proto.Request, s
 }
 
 func (s *GameServer) HandleLaserRequest(playerID uuid.UUID, req *proto.Request, srv proto.Game_StreamServer) {
-	move := req.GetLaser()
+	laser := req.GetLaser()
+	id, err := uuid.Parse(laser.Id)
+	if err != nil {
+		return
+	}
 
 	s.Game.ActionChannel <- backend.LaserAction{
 		OwnerID:   playerID,
-		Direction: proto.GetBackendDirection(move.Direction),
+		ID: id,
+		Direction: proto.GetBackendDirection(laser.Direction),
 	}
 }
 
