@@ -66,6 +66,17 @@ func (s *GameServer) HandleRemoveEntityChange(change backend.RemoveEntityChange)
 	s.Broadcast(&resp)
 }
 
+func (s *GameServer) HandlePlayerRespawnChange(change backend.PlayerRespawnChange) {
+	resp := proto.Response{
+		Action: &proto.Response_PlayerRespawn{
+			PlayerRespawn: &proto.PlayerRespawn{
+				Player: proto.GetProtoPlayer(change.Player),
+			},
+		},
+	}
+	s.Broadcast(&resp)
+}
+
 func (s *GameServer) WatchChanges() {
 	go func() {
 		for {
@@ -80,6 +91,9 @@ func (s *GameServer) WatchChanges() {
 			case backend.RemoveEntityChange:
 				change := change.(backend.RemoveEntityChange)
 				s.HandleRemoveEntityChange(change)
+			case backend.PlayerRespawnChange:
+				change := change.(backend.PlayerRespawnChange)
+				s.HandlePlayerRespawnChange(change)
 			}
 		}
 	}()

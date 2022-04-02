@@ -73,12 +73,17 @@ message RemoveEntity {
     string id = 1;
 }
 
+message PlayerRespawn {
+    Player player = 1;
+}
+
 message Response {
     oneof action {
         Initialize initialize = 1;
         AddEntity addEntity = 2;
         UpdateEntity updateEntity = 3;
         RemoveEntity removeEntity = 4;
+        PlayerRespawn playerRespawn = 5;
     }
 }
 

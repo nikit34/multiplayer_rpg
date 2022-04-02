@@ -191,6 +191,11 @@ type LaserRemoveChange struct {
 	ID uuid.UUID
 }
 
+type PlayerRespawnChange struct {
+	Change
+	Player *Player
+}
+
 func (game *Game) Start() {
 	go func() {
 		for {

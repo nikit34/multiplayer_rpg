@@ -107,6 +107,15 @@ func (c *GameClient) HandleRemoveEntityResponse(resp *proto.Response) {
 	c.Game.RemoveEntity(id)
 }
 
+func (c *GameClient) HandlePlayerRespawnResponse(resp *proto.Response) {
+	respawn := resp.GetPlayerRespawn()
+	player := proto.GetBackendPlayer(respawn.Player)
+	if player == nil {
+		return
+	}
+	c.Game.UpdateEntity(player)
+}
+
 func (c *GameClient) Start() {
 	go func() {
 		for {
@@ -143,6 +152,8 @@ func (c *GameClient) Start() {
 				c.HandleUpdateEntityResponse(resp)
 			case *proto.Response_RemoveEntity:
 				c.HandleRemoveEntityResponse(resp)
+			case *proto.Response_PlayerRespawn:
+				c.HandlePlayerRespawnResponse(resp)
 			}
 		}
 	}()
