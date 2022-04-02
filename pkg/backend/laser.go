@@ -71,10 +71,7 @@ func (action LaserAction) Perform(game *Game) {
 
 	game.AddEntity(&laser)
 
-	change := LaserChange{
-		Laser: laser,
-		ID: laser.ID(),
-	}
+	change := AddEntityChange{Entity: &laser}
 
 	select {
 	case game.ChangeChannel <- change:

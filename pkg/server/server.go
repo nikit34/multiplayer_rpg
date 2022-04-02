@@ -221,6 +221,7 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 		if !isConnected {
 			continue
 		}
+		log.Printf("got message %+v", req)
 
 		switch req.GetAction().(type) {
 		case *proto.Request_Move:

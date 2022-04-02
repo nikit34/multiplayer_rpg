@@ -61,8 +61,9 @@ func main() {
 
 	playerID := uuid.New()
 	client := client.NewGameClient(stream, game, view)
+	
+	client.Start()
 	client.Connect(playerID, playerName)
 
-	client.Start()
 	view.Start()
 }
