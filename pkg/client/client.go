@@ -4,7 +4,6 @@ import (
 	"io"
 	"log"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
@@ -28,16 +27,14 @@ func NewGameClient(stream proto.Game_StreamClient, game *backend.Game, view *fro
 	}
 }
 
-func (c *GameClient) Connect(playerName string) {
-	c.CurrentPlayer = &backend.Player{
-		Name: playerName,
-		Icon: 'P',
-	}
+func (c *GameClient) Connect(playerID uuid.UUID, playerName string) {
+	c.CurrentPlayer = playerID
 
 	req := proto.Request{
 		Action: &proto.Request_Connect{
 			Connect: &proto.Connect{
-				Player: playerName,
+				Id: playerID.String(),
+				Name: playerName,
 			},
 		},
 	}
@@ -55,57 +52,21 @@ func (c *GameClient) HandlePositionChange(change backend.PositionChange) {
 	c.Stream.Send(&req)
 }
 
-func (c *GameClient) HandleLaserChange(change backend.LaserChange) {
-	req := proto.Request{
-		Action: &proto.Request_Laser{
-			Laser: &proto.Laser{
-				Direction: proto.GetProtoDirection(change.Laser.Direction),
-				Uuid:      change.UUID.String(),
-			},
-		},
-	}
-	c.Stream.Send(&req)
-}
-
 func (c *GameClient) HandleInitializeResponse(resp *proto.Response) {
 	init := resp.GetInitialize()
 	for _, entity := range init.Entities {
 		c.Game.AddEntity(proto.GetBackendEntity(entity))
 	}
-
-	for _, laser := range init.Lasers {
-		laserUUID, err := uuid.Parse(laser.Uuid)
-		if err != nil {
-			continue
-		}
-
-		starttime, err := ptypes.Timestamp(laser.Starttime)
-		if err != nil {
-			continue
-		}
-
-		c.Game.Lasers[laserUUID] = backend.Laser{
-			InitialPosition: proto.GetBackendCoordinate(laser.Position),
-			Direction: proto.GetBackendDirection(laser.Direction),
-			StartTime: starttime,
-		}
-	}
 	c.View.CurrentPlayer = c.CurrentPlayer
 }
 
-func (c *GameClient) HandleAddEntityChange(change backend.LaserChange) {
+func (c *GameClient) HandleAddEntityChange(change backend.AddEntityChange) {
 	switch change.Entity.(type) {
 	case backend.Laser:
 		laser := change.Entity.(backend.Laser)
-		
 		req := proto.Request{
 			Action: &proto.Request_Laser{
-				Laser: &proto.Laser{
-					Direction: proto.GetProtoDirection(laser.Direction),
-					Id:      laser.ID().String(),
-					Starttime: timestamp,
-					InitialPosition: proto.GetProtoCoordinate(laser.InitialPosition),
-				},
+				Laser: proto.GetProtoEntity(laser).GetLaser(),
 			},
 		}
 		c.Stream.Send(&req)
@@ -114,89 +75,22 @@ func (c *GameClient) HandleAddEntityChange(change backend.LaserChange) {
 	}
 }
 
-func (c *GameClient) HandleAddPlayerResponse(resp *proto.Response) {
-	add := resp.GetAddplayer()
-	newPlayer := backend.Player{
-		Position:  proto.GetBackendCoordinate(add.Position),
-		Name:      resp.Player,
-		Icon:      'P',
-	}
-
-	c.Game.Mux.Lock()
-	c.Game.Players[resp.Player] = &newPlayer
-	c.Game.Mux.Unlock()
+func (c *GameClient) HandleAddEntityResponse(resp *proto.Response) {
+	add := resp.GetAddEntity()
+	entity := proto.GetBackendEntity(add.Entity)
+	c.Game.AddEntity(entity)
 }
 
-func (c *GameClient) HandleUpdatePlayerResponse(resp *proto.Response) {
-	c.Game.Mux.Lock()
-	defer c.Game.Mux.Unlock()
-
-	update := resp.GetUpdateplayer()
-	if c.Game.Players[resp.Player] == nil {
-		return
-	}
-	if resp.Player == c.CurrentPlayer.Name {
-		return
-	}
-
-	c.Game.Players[resp.Player].Mux.Lock()
-	c.Game.Players[resp.Player].Position = proto.GetBackendCoordinate(update.Position)
-	c.Game.Players[resp.Player].Mux.Unlock()
+func (c *GameClient) HandleUpdateEntityResponse(resp *proto.Response) {
+	update := resp.GetUpdateEntity()
+	entity := proto.GetBackendEntity(update.Entity)
+	c.Game.UpdateEntity(entity)
 }
 
-func (c *GameClient) HandleRemovePlayerResponse(resp *proto.Response) {
-	c.Game.Mux.Lock()
-	defer c.Game.Mux.Unlock()
-	delete(c.Game.Players, resp.Player)
-	delete(c.Game.LastAction, resp.Player)
-}
-
-func (c *GameClient) HandleAddLaserResponse(resp *proto.Response) {
-	addLaser := resp.GetAddlaser()
-	protoLaser := addLaser.GetLaser()
-	uuid, err := uuid.Parse(protoLaser.Uuid)
-	if err != nil {
-		return
-	}
-
-	startTime, err := ptypes.Timestamp(protoLaser.Starttime)
-	if err != nil {
-		return
-	}
-
-	c.Game.Mux.Lock()
-	c.Game.Lasers[uuid] = backend.Laser{
-		InitialPosition: proto.GetBackendCoordinate(protoLaser.Position),
-		Direction:       proto.GetBackendDirection(protoLaser.Direction),
-		StartTime:       startTime,
-	}
-
-	c.Game.Mux.Unlock()
-}
-
-func (c *GameClient) HandleRemoveLaserResponse(resp *proto.Response) {
-	removeLaser := resp.GetRemovelaser()
-	uuid, err := uuid.Parse(removeLaser.Uuid)
-	if err != nil {
-		return
-	}
-
-	c.Game.Mux.Lock()
-	delete(c.Game.Lasers, uuid)
-	c.Game.Mux.Unlock()
-}
-
-func (c *GameClient) HandlePlayerKilledResponse(resp *proto.Response) {
-	playerKilled := resp.GetPlayerkilled()
-	playerName := resp.GetPlayer()
-
-	if c.Game.Players[playerName] == nil {
-		return
-	}
-
-	c.Game.Players[playerName].Mux.Lock()
-	c.Game.Players[playerName].Position = proto.GetBackendCoordinate(playerKilled.SpawnPosition)
-	c.Game.Players[playerName].Mux.Unlock()
+func (c *GameClient) HandleRemoveEntityResponse(resp *proto.Response) {
+	remove := resp.GetRemoveEntity()
+	entity := proto.GetBackendEntity(remove.Entity)
+	c.Game.RemoveEntity(entity.ID())
 }
 
 func (c *GameClient) Start() {
@@ -208,9 +102,9 @@ func (c *GameClient) Start() {
 			case backend.PositionChange:
 				change := change.(backend.PositionChange)
 				c.HandlePositionChange(change)
-			case backend.LaserChange:
-				change := change.(backend.LaserChange)
-				c.HandleLaserChange(change)
+			case backend.AddEntityChange:
+				change := change.(backend.AddEntityChange)
+				c.HandleAddEntityChange(change)
 			}
 		}
 	}()
@@ -230,28 +124,11 @@ func (c *GameClient) Start() {
 			case *proto.Response_Initialize:
 				c.HandleInitializeResponse(resp)
 			case *proto.Response_AddEntity:
-				c.HandleAddEntity(resp)
+				c.HandleAddEntityResponse(resp)
 			case *proto.Response_UpdateEntity:
-				c.HandleUpdateEntity(resp)
+				c.HandleUpdateEntityResponse(resp)
 			case *proto.Response_RemoveEntity:
-				c.HandleRemoveEntity(resp)
-			}
-		}
-	}()
-}
-
-func (c *GameClient) WatchChanges() {
-	go func() {
-		for {
-			change := <- c.Game.ChangeChannel
-
-			switch change.(type) {
-			case backend.PositionChange:
-				change := change.(backend.PositionChange)
-				c.HandlePositionChange(change)
-			case backend.LaserChange:
-				change := change.(backend.LaserChange)
-				c.HandleLaserChange(change)
+				c.HandleRemoveEntityResponse(resp)
 			}
 		}
 	}()

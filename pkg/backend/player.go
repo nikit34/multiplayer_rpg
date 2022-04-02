@@ -1,7 +1,5 @@
 package backend
 
-import "github.com/google/uuid"
-
 
 type Player struct {
 	IdentifierBase

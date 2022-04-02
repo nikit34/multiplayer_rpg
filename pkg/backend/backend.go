@@ -66,6 +66,12 @@ func (game *Game) AddEntity(entity Identifier) {
 	game.Mu.Unlock()
 }
 
+func (game *Game) UpdateEntity(entity Identifier) {
+	game.Mu.Lock()
+	game.Entities[entity.ID()] = entity
+	game.Mu.Unlock()
+}
+
 func (game *Game) GetEntity(id uuid.UUID) Identifier {
 	game.Mu.RLock()
 	defer game.Mu.RUnlock()
@@ -102,6 +108,11 @@ type PositionChange struct {
 	ID uuid.UUID
 	Direction Direction
 	Position Coordinate
+}
+
+type AddEntityChange struct {
+	Change
+	Entity Identifier
 }
 
 func (action MoveAction) Perform(game *Game) {

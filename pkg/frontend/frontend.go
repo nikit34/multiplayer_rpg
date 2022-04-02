@@ -3,6 +3,7 @@ package frontend
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
 
 	tcell "github.com/gdamore/tcell/v2"
@@ -13,7 +14,7 @@ import (
 type View struct {
 	Game *backend.Game
 	App *tview.Application
-	CurrentPlayer *backend.Player
+	CurrentPlayer uuid.UUID
 }
 
 func NewView(game *backend.Game) *View {
