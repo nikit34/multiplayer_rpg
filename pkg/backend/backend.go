@@ -176,6 +176,7 @@ type Game struct {
 	ChangeChannel chan Change
 	ActionChannel chan Action
 	LastAction map[string]time.Time
+	IsAuthoritative bool
 }
 
 func NewGame() *Game {
@@ -184,6 +185,7 @@ func NewGame() *Game {
 		ActionChannel: make(chan Action, 1),
 		LastAction: make(map[string]time.Time),
 		ChangeChannel: make(chan Change, 1),
+		IsAuthoritative: true,
 	}
 	return &game
 }
@@ -200,6 +202,10 @@ func (game *Game) Start() {
 			action.Perform(game)
 		}
 	}()
+
+	if !game.IsAuthoritative {
+		return
+	}
 
 	go func() {
 		for {
