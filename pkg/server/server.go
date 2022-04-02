@@ -34,7 +34,7 @@ func (s *GameServer) Broadcast(resp *proto.Response) {
 	s.Mux.RUnlock()
 }
 
-func (s *GameServer) HandlePositionChange(change backend.PositionChange) {
+func (s *GameServer) HandleMoveChange(change backend.MoveChange) {
 	resp := proto.Response{
 		Action: &proto.Response_UpdateEntity{
 			UpdateEntity: &proto.UpdateEntity{
@@ -72,9 +72,9 @@ func (s *GameServer) WatchChanges() {
 		for {
 			change := <-s.Game.ChangeChannel
 			switch change.(type) {
-			case backend.PositionChange:
-				change := change.(backend.PositionChange)
-				s.HandlePositionChange(change)
+			case backend.MoveChange:
+				change := change.(backend.MoveChange)
+				s.HandleMoveChange(change)
 			case backend.AddEntityChange:
 				change := change.(backend.AddEntityChange)
 				s.HandleAddEntityChange(change)

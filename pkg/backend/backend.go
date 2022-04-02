@@ -106,7 +106,7 @@ type MoveAction struct {
 	Direction Direction
 }
 
-type PositionChange struct {
+type MoveChange struct {
 	Change
 	Entity Identifier
 	Direction Direction
@@ -148,8 +148,7 @@ func (action MoveAction) Perform(game *Game) {
 	}
 	entity.(Mover).Move(position)
 
-
-	change := PositionChange{
+	change := MoveChange{
 		Entity: entity,
 		Direction: action.Direction,
 		Position: position,

@@ -42,7 +42,7 @@ func (c *GameClient) Connect(playerID uuid.UUID, playerName string) {
 	c.Stream.Send(&req)
 }
 
-func (c *GameClient) HandlePositionChange(change backend.PositionChange) {
+func (c *GameClient) HandleMoveChange(change backend.MoveChange) {
 	req := proto.Request{
 		Action: &proto.Request_Move{
 			Move: &proto.Move{
@@ -112,11 +112,10 @@ func (c *GameClient) Start() {
 	go func() {
 		for {
 			change := <-c.Game.ChangeChannel
-
 			switch change.(type) {
-			case backend.PositionChange:
-				change := change.(backend.PositionChange)
-				c.HandlePositionChange(change)
+			case backend.MoveChange:
+				change := change.(backend.MoveChange)
+				c.HandleMoveChange(change)
 			case backend.AddEntityChange:
 				change := change.(backend.AddEntityChange)
 				c.HandleAddEntityChange(change)
