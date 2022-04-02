@@ -53,38 +53,46 @@ func GetProtoCoordinate(coordinate backend.Coordinate) *Coordinate {
 	}
 }
 
+func GetBackendPlayer(protoPlayer *Player) *backend.Player {
+	entityID, err := uuid.Parse(protoPlayer.Id)
+	if err != nil {
+		return nil
+	}
+	player := &backend.Player{
+		IdentifierBase: backend.IdentifierBase{UUID: entityID},
+		Name:           protoPlayer.Name,
+		Icon:           'P',
+	}
+	player.Move(GetBackendCoordinate(protoPlayer.Position))
+	return player
+}
+
+func GetBackendLaser(protoLaser *Laser) *backend.Laser {
+	entityID, err := uuid.Parse(protoLaser.Id)
+	if err != nil {
+		return nil
+	}
+	timestamp, err := ptypes.Timestamp(protoLaser.StartTime)
+	if err != nil {
+		return nil
+	}
+	laser := &backend.Laser{
+		IdentifierBase:  backend.IdentifierBase{UUID: entityID},
+		InitialPosition: GetBackendCoordinate(protoLaser.InitialPosition),
+		Direction:       GetBackendDirection(protoLaser.Direction),
+		StartTime:       timestamp,
+	}
+	return laser
+}
+
 func GetBackendEntity(protoEntity *Entity) backend.Identifier {
 	switch protoEntity.Entity.(type) {
 	case *Entity_Player:
 		protoPlayer := protoEntity.Entity.(*Entity_Player).Player
-		entityID, err := uuid.Parse(protoPlayer.Id)
-		if err != nil {
-			return nil
-		}
-		player := &backend.Player{
-			IdentifierBase: backend.IdentifierBase{UUID: entityID},
-			Name:           protoPlayer.Name,
-			Icon:           'P',
-		}
-		player.Move(GetBackendCoordinate(protoPlayer.Position))
-		return player
+		return GetBackendPlayer(protoPlayer)
 	case *Entity_Laser:
 		protoLaser := protoEntity.Entity.(*Entity_Laser).Laser
-		entityID, err := uuid.Parse(protoLaser.Id)
-		if err != nil {
-			return nil
-		}
-		timestamp, err := ptypes.Timestamp(protoLaser.StartTime)
-		if err != nil {
-			return nil
-		}
-		laser := &backend.Laser{
-			IdentifierBase:  backend.IdentifierBase{UUID: entityID},
-			InitialPosition: GetBackendCoordinate(protoLaser.InitialPosition),
-			Direction:       GetBackendDirection(protoLaser.Direction),
-			StartTime:       timestamp,
-		}
-		return laser
+		return GetBackendLaser(protoLaser)
 	}
 	log.Fatalf("Cannot get backend entity for %T -> %+v", protoEntity, protoEntity)
 	return nil
