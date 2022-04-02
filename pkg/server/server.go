@@ -81,19 +81,15 @@ func (s *GameServer) WatchChanges() {
 	go func() {
 		for {
 			change := <-s.Game.ChangeChannel
-			switch change.(type) {
+			switch change_type := change.(type) {
 			case backend.MoveChange:
-				change := change.(backend.MoveChange)
-				s.HandleMoveChange(change)
+				s.HandleMoveChange(change_type)
 			case backend.AddEntityChange:
-				change := change.(backend.AddEntityChange)
-				s.HandleAddEntityChange(change)
+				s.HandleAddEntityChange(change_type)
 			case backend.RemoveEntityChange:
-				change := change.(backend.RemoveEntityChange)
-				s.HandleRemoveEntityChange(change)
+				s.HandleRemoveEntityChange(change_type)
 			case backend.PlayerRespawnChange:
-				change := change.(backend.PlayerRespawnChange)
-				s.HandlePlayerRespawnChange(change)
+				s.HandlePlayerRespawnChange(change_type)
 			}
 		}
 	}()

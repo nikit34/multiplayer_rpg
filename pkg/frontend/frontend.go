@@ -52,9 +52,9 @@ func NewView(game *backend.Game) *View {
 				var icon rune
 				var color tcell.Color
 
-				switch entity.(type) {
+				switch entity_type := entity.(type) {
 				case *backend.Player:
-					icon = entity.(*backend.Player).Icon
+					icon = entity_type.Icon
 					color = tcell.ColorGreen
 				case *backend.Laser:
 					icon = 'x'

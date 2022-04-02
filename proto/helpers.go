@@ -86,12 +86,12 @@ func GetBackendLaser(protoLaser *Laser) *backend.Laser {
 }
 
 func GetBackendEntity(protoEntity *Entity) backend.Identifier {
-	switch protoEntity.Entity.(type) {
+	switch proto_type := protoEntity.Entity.(type) {
 	case *Entity_Player:
-		protoPlayer := protoEntity.Entity.(*Entity_Player).Player
+		protoPlayer := proto_type.Player
 		return GetBackendPlayer(protoPlayer)
 	case *Entity_Laser:
-		protoLaser := protoEntity.Entity.(*Entity_Laser).Laser
+		protoLaser := proto_type.Laser
 		return GetBackendLaser(protoLaser)
 	}
 	log.Fatalf("Cannot get backend entity for %T -> %+v", protoEntity, protoEntity)
@@ -120,17 +120,15 @@ func GetProtoLaser(laser *backend.Laser) *Laser {
 }
 
 func GetProtoEntity(entity backend.Identifier) *Entity {
-	switch entity.(type) {
+	switch entity_type := entity.(type) {
 	case *backend.Player:
-		player := entity.(*backend.Player)
 		protoPlayer := Entity_Player{
-			Player: GetProtoPlayer(player),
+			Player: GetProtoPlayer(entity_type),
 		}
 		return &Entity{Entity: &protoPlayer}
 	case *backend.Laser:
-		laser := entity.(*backend.Laser)
 		protoLaser := Entity_Laser{
-			Laser: GetProtoLaser(laser),
+			Laser: GetProtoLaser(entity_type),
 		}
 		return &Entity{Entity: &protoLaser}
 	}

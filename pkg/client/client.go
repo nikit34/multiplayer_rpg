@@ -66,9 +66,8 @@ func (c *GameClient) HandleInitializeResponse(resp *proto.Response) {
 }
 
 func (c *GameClient) HandleAddEntityChange(change backend.AddEntityChange) {
-	switch change.Entity.(type) {
+	switch laser := change.Entity.(type) {
 	case *backend.Laser:
-		laser := change.Entity.(*backend.Laser)
 		req := proto.Request{
 			Action: &proto.Request_Laser{
 				Laser: proto.GetProtoEntity(laser).GetLaser(),
@@ -120,13 +119,11 @@ func (c *GameClient) Start() {
 	go func() {
 		for {
 			change := <-c.Game.ChangeChannel
-			switch change.(type) {
+			switch type_change := change.(type) {
 			case backend.MoveChange:
-				change := change.(backend.MoveChange)
-				c.HandleMoveChange(change)
+				c.HandleMoveChange(type_change)
 			case backend.AddEntityChange:
-				change := change.(backend.AddEntityChange)
-				c.HandleAddEntityChange(change)
+				c.HandleAddEntityChange(type_change)
 			}
 		}
 	}()
