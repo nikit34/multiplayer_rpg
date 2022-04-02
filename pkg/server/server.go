@@ -3,6 +3,7 @@ package server
 import (
 	"log"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -59,7 +60,7 @@ func (s *GameServer) HandleRemoveEntityChange(change backend.RemoveEntityChange)
 	resp := proto.Response{
 		Action: &proto.Response_RemoveEntity{
 			RemoveEntity: &proto.RemoveEntity{
-				Entity: proto.GetProtoEntity(change.Entity),
+				Id: change.Entity.ID().String(),
 			},
 		},
 	}
@@ -103,7 +104,9 @@ func (s *GameServer) RemoveClient(playerID uuid.UUID, srv proto.Game_StreamServe
 
 	resp := proto.Response{
 		Action: &proto.Response_RemoveEntity{
-			RemoveEntity: &proto.RemoveEntity{},
+			RemoveEntity: &proto.RemoveEntity{
+				Id: playerID.String(),
+			},
 		},
 	}
 	s.Broadcast(&resp)
@@ -127,12 +130,16 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 	s.Game.AddEntity(player)
 
 	entities := make([]*proto.Entity, 0)
+	s.Game.Mu.RLock()
 	for _, entity := range s.Game.Entities {
 		protoEntity := proto.GetProtoEntity(entity)
 		if protoEntity != nil {
 			entities = append(entities, protoEntity)
 		}
 	}
+	s.Game.Mu.RUnlock()
+
+	time.Sleep(time.Second * 1)
 
 	resp := proto.Response{
 		Action: &proto.Response_Initialize{
@@ -189,6 +196,7 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 	ctx := srv.Context()
 	var playerID uuid.UUID
 
+	isConnected := false
 	for {
 		select {
 		case <-ctx.Done():
@@ -199,7 +207,7 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 		req, err := srv.Recv()
 		if err != nil {
 			log.Printf("receive error %v", err)
-			if playerID.String() != "" {
+			if isConnected {
 				s.RemoveClient(playerID, srv)
 			}
 			continue
@@ -207,9 +215,10 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 
 		if req.GetConnect() != nil {
 			playerID = s.HandleConnectRequest(req, srv)
+			isConnected = true
 		}
 
-		if playerID.String() == "" {
+		if !isConnected {
 			continue
 		}
 

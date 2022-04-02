@@ -28,6 +28,7 @@ func NewGameClient(stream proto.Game_StreamClient, game *backend.Game, view *fro
 }
 
 func (c *GameClient) Connect(playerID uuid.UUID, playerName string) {
+	c.View.Paused = true
 	c.CurrentPlayer = playerID
 
 	req := proto.Request{
@@ -58,6 +59,7 @@ func (c *GameClient) HandleInitializeResponse(resp *proto.Response) {
 		c.Game.AddEntity(proto.GetBackendEntity(entity))
 	}
 	c.View.CurrentPlayer = c.CurrentPlayer
+	c.View.Paused = false
 }
 
 func (c *GameClient) HandleAddEntityChange(change backend.AddEntityChange) {
@@ -89,8 +91,11 @@ func (c *GameClient) HandleUpdateEntityResponse(resp *proto.Response) {
 
 func (c *GameClient) HandleRemoveEntityResponse(resp *proto.Response) {
 	remove := resp.GetRemoveEntity()
-	entity := proto.GetBackendEntity(remove.Entity)
-	c.Game.RemoveEntity(entity.ID())
+	id, err := uuid.Parse(remove.Id)
+	if err != nil {
+		return
+	}
+	c.Game.RemoveEntity(id)
 }
 
 func (c *GameClient) Start() {
@@ -112,6 +117,7 @@ func (c *GameClient) Start() {
 	go func() {
 		for {
 			resp, err := c.Stream.Recv()
+			log.Printf("Recv %+v", resp)
 			if err == io.EOF {
 				log.Fatalf("EOF")
 				return

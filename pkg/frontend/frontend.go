@@ -15,12 +15,14 @@ type View struct {
 	Game *backend.Game
 	App *tview.Application
 	CurrentPlayer uuid.UUID
+	Paused bool
 }
 
 func NewView(game *backend.Game) *View {
 	app := tview.NewApplication()
 	view := &View{
 		Game: game,
+		Paused: false,
 		App: app,
 	}
 
@@ -75,12 +77,9 @@ func NewView(game *backend.Game) *View {
 	)
 
 	box.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-		if view.CurrentPlayer.String() == "" {
+		if view.Paused {
 			return e
 		}
-
-		view.Game.Mu.RLock()
-		defer view.Game.Mu.RUnlock()
 
 		direction := backend.DirectionStop
 		switch e.Key() {
@@ -127,6 +126,9 @@ func NewView(game *backend.Game) *View {
 func (view *View) Start() error {
 	go func() {
 		for {
+			if view.Paused {
+				continue
+			}
 			view.App.Draw()
 			time.Sleep(17 * time.Microsecond)
 		}

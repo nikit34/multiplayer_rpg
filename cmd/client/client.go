@@ -41,6 +41,10 @@ func main() {
 
 	grpcClient := proto.NewGameClient(conn)
 	stream, err := grpcClient.Stream(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
 	ctx := stream.Context()
 
 	go func() {
@@ -58,5 +62,7 @@ func main() {
 	playerID := uuid.New()
 	client := client.NewGameClient(stream, game, view)
 	client.Connect(playerID, playerName)
+
 	client.Start()
+	view.Start()
 }
