@@ -6,9 +6,10 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
-	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/client"
+	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
 	"github.com/nikit34/multiplayer_rpg_go/proto"
 
 	"google.golang.org/grpc"
@@ -53,8 +54,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("openn stream error %v", err)
 	}
-	
+
+	playerID := uuid.New()
 	client := client.NewGameClient(stream, game, view)
-	client.Connect(playerName)
+	client.Connect(playerID, playerName)
 	client.Start()
 }

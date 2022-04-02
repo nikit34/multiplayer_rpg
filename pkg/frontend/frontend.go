@@ -75,7 +75,7 @@ func NewView(game *backend.Game) *View {
 	)
 
 	box.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-		if view.CurrentPlayer == nil {
+		if view.CurrentPlayer.String() == "" {
 			return e
 		}
 
@@ -95,7 +95,7 @@ func NewView(game *backend.Game) *View {
 		}
 		if direction != backend.DirectionStop {
 			view.Game.ActionChannel <- backend.MoveAction{
-				ID:         view.CurrentPlayer.ID(),
+				ID:         view.CurrentPlayer,
 				Direction:  direction,
 			}
 		}
@@ -113,7 +113,7 @@ func NewView(game *backend.Game) *View {
 		}
 		if laserDirection != backend.DirectionStop {
 			view.Game.ActionChannel <- backend.LaserAction{
-				OwnerID:    view.CurrentPlayer.ID(),
+				OwnerID:    view.CurrentPlayer,
 				Direction:  laserDirection,
 			}
 		}

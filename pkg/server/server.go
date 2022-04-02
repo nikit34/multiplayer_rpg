@@ -4,7 +4,6 @@ import (
 	"log"
 	"sync"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
@@ -36,49 +35,27 @@ func (s *GameServer) Broadcast(resp *proto.Response) {
 
 func (s *GameServer) HandlePositionChange(change backend.PositionChange) {
 	resp := proto.Response{
-		Player: change.PlayerName,
-		Action: &proto.Response_Updateplayer{
-			Updateplayer: &proto.UpdatePlayer{
-				Position: proto.GetProtoCoordinate(change.Position),
+		Action: &proto.Response_UpdateEntity{
+			UpdateEntity: &proto.UpdateEntity{
+				Entity: proto.GetProtoEntity(change.Entity),
 			},
 		},
 	}
 	s.Broadcast(&resp)
 }
 
-func (s *GameServer) HandleLaserChange(change backend.LaserChange) {
-	timestamp, err := ptypes.TimestampProto(change.Laser.StartTime)
-	if err != nil {
-		return
-	}
-
+func (s *GameServer) HandleAddEntityChange(change backend.AddEntityChange) {
 	resp := proto.Response{
-		Action: &proto.Response_Addlaser{
-			Addlaser: &proto.AddLaser{
-				Laser: &proto.Laser{
-					Direction: proto.GetProtoDirection(change.Laser.Direction),
-					Uuid:      change.UUID.String(),
-					Starttime: timestamp,
-					Position:  proto.GetProtoCoordinate(change.Laser.GetPosition()),
-				},
+		Action: &proto.Response_AddEntity{
+			AddEntity: &proto.AddEntity{
+				Entity: proto.GetProtoEntity(change.Entity),
 			},
 		},
 	}
 	s.Broadcast(&resp)
 }
 
-func (s *GameServer) HandleLaserRemoveChange(change backend.LaserRemoveChange) {
-	resp := proto.Response{
-		Action: &proto.Response_Removelaser{
-			Removelaser: &proto.RemoveLaser{
-				Uuid: change.UUID.String(),
-			},
-		},
-	}
-	s.Broadcast(&resp)
-}
-
-func (s *GameServer) HandlePlayerKilledChange(change backend.RemoveEntityChange) {
+func (s *GameServer) HandleRemoveEntityChange(change backend.RemoveEntityChange) {
 	resp := proto.Response{
 		Action: &proto.Response_RemoveEntity{
 			RemoveEntity: &proto.RemoveEntity{
@@ -122,21 +99,17 @@ func (s *GameServer) RemoveClient(playerID uuid.UUID, srv proto.Game_StreamServe
 	delete(s.Clients, playerID)
 	s.Mux.Unlock()
 
-	s.Game.Mux.Lock()
-	delete(s.Game.Players, playerName)
-	delete(s.Game.LastAction, playerName)
-	s.Game.Mux.Unlock()
+	s.Game.RemoveEntity(playerID)
 
 	resp := proto.Response{
-		Player: playerName,
-		Action: &proto.Response_Removeplayer{
-			Removeplayer: &proto.RemovePlayer{},
+		Action: &proto.Response_RemoveEntity{
+			RemoveEntity: &proto.RemoveEntity{},
 		},
 	}
 	s.Broadcast(&resp)
 }
 
-func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_StreamServer) string {
+func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_StreamServer) uuid.UUID {
 	connect := req.GetConnect()
 
 	playerID, err := uuid.Parse(connect.Id)
@@ -176,7 +149,6 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 	log.Printf("sent initialize message for %s", connect.Name)
 
 	resp = proto.Response{
-		Id: connect.Id,
 		Action: &proto.Response_AddEntity{
 			AddEntity: &proto.AddEntity{
 				Entity: proto.GetProtoEntity(player),
@@ -215,7 +187,7 @@ func (s *GameServer) HandleLaserRequest(playerID uuid.UUID, req *proto.Request, 
 func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 	log.Println("start server")
 	ctx := srv.Context()
-	currentPlayer := ""
+	var playerID uuid.UUID
 
 	for {
 		select {
@@ -227,25 +199,25 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 		req, err := srv.Recv()
 		if err != nil {
 			log.Printf("receive error %v", err)
-			if currentPlayer != "" {
-				s.RemoveClient(currentPlayer, srv)
+			if playerID.String() != "" {
+				s.RemoveClient(playerID, srv)
 			}
 			continue
 		}
 
 		if req.GetConnect() != nil {
-			currentPlayer = s.HandleConnectRequest(req, srv)
+			playerID = s.HandleConnectRequest(req, srv)
 		}
 
-		if currentPlayer == "" {
+		if playerID.String() == "" {
 			continue
 		}
 
 		switch req.GetAction().(type) {
 		case *proto.Request_Move:
-			s.HandleMoveRequest(currentPlayer, req, srv)
+			s.HandleMoveRequest(playerID, req, srv)
 		case *proto.Request_Laser:
-			s.HandleLaserRequest(currentPlayer, req, srv)
+			s.HandleLaserRequest(playerID, req, srv)
 		}
 	}
 }

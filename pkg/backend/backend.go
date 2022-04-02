@@ -105,12 +105,17 @@ type MoveAction struct {
 
 type PositionChange struct {
 	Change
-	ID uuid.UUID
+	Entity Identifier
 	Direction Direction
 	Position Coordinate
 }
 
 type AddEntityChange struct {
+	Change
+	Entity Identifier
+}
+
+type RemoveEntityChange struct {
 	Change
 	Entity Identifier
 }
@@ -142,7 +147,7 @@ func (action MoveAction) Perform(game *Game) {
 
 
 	change := PositionChange{
-		ID: entity.ID(),
+		Entity: entity,
 		Direction: action.Direction,
 		Position: position,
 	}
