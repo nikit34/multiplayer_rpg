@@ -210,49 +210,70 @@ func (game *Game) Start() {
 
 	go func() {
 		for {
-			// game.Mux.Lock()
-			// for id, laser := range game.Lasers {
-			// 	laserPosition := laser.GetPosition()
-			// 	didCollide := false
-			// 	for _, player := range game.Players {
-			// 		player.Mux.Lock()
+			collisionMap := make(map[Coordinate][]Positioner)
 
-			// 		if player.Position.X == laserPosition.X && player.Position.Y == laserPosition.Y {
-			// 			didCollide = true
-			// 			player.Position.X = 0
-			// 			player.Position.Y = 0
-			// 			change := PlayerKilledChange{
-			// 				PlayerName: player.Name,
-			// 				SpawnPosition: player.Position,
-			// 			}
+			game.Mu.RLock()
+			for _, entity := range game.Entities {
+				positioner, ok := entity.(Positioner)
+				if !ok {
+					continue
+				}
 
-			// 			player.Mux.Unlock()
-			// 			select {
-			// 			case game.ChangeChannel <- change:
+				position := positioner.Position()
+				collisionMap[position] = append(collisionMap[position], positioner)
+			}
+			game.Mu.RUnlock()
 
-			// 			default:
+			for _, entities := range collisionMap {
+				if len(entities) <= 1 {
+					continue
+				}
 
-			// 			}
-			// 		} else {
-			// 			player.Mux.Unlock()
-			// 		}
-			// 	}
-			// 	if didCollide {
-			// 		delete(game.Lasers, id)
+				hasLaser := false
 
-			// 		change:= LaserRemoveChange{
-			// 			UUID: id,
-			// 		}
+				for _, entity := range entities {
+					_, ok := entity.(*Laser)
+					if ok {
+						hasLaser = true
+						break
+					}
+				}
 
-			// 		select {
-			// 		case game.ChangeChannel <- change:
+				if hasLaser {
+					for _, entity := range entities {
+						switch type_entity := entity.(type) {
+						case *Laser:
+							laser := type_entity
+							change := RemoveEntityChange{
+								Entity: laser,
+							}
 
-			// 		default:
+							select {
+							case game.ChangeChannel <- change:
 
-			// 		}
-			// 	}
-			// }
-			// game.Mux.Unlock()
+							default:
+
+							}
+
+							game.RemoveEntity(laser.ID())
+						case *Player:
+							player := type_entity
+							player.Move(Coordinate{X: 0, Y: 0})
+							change := PlayerRespawnChange{
+								Player: player,
+							}
+
+							select {
+							case game.ChangeChannel <- change:
+
+							default:
+
+							}
+						}
+					}
+				}
+			}
+
 			time.Sleep(time.Millisecond * 20)
 		}
 	}()
