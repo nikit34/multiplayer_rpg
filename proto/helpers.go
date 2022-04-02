@@ -2,7 +2,7 @@ package proto
 
 import (
 	"log"
-	
+
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 
@@ -94,7 +94,7 @@ func GetBackendEntity(protoEntity *Entity) backend.Identifier {
 func GetProtoEntity(entity backend.Identifier) *Entity {
 	switch entity.(type) {
 	case *backend.Player:
-		player := entity.(backend.Player)
+		player := entity.(*backend.Player)
 		protoPlayer := Entity_Player{
 			Player: &Player{
 				Id:       player.ID().String(),
@@ -104,21 +104,25 @@ func GetProtoEntity(entity backend.Identifier) *Entity {
 		}
 		return &Entity{Entity: &protoPlayer}
 	case *backend.Laser:
-		laser := entity.(backend.Laser)
-		timestamp, err := ptypes.TimestampProto(laser.StartTime)
-		if err != nil {
-			return nil
-		}
+		laser := entity.(*backend.Laser)
 		protoLaser := Entity_Laser{
-			Laser: &Laser{
-				Id:              laser.ID().String(),
-				StartTime:       timestamp,
-				InitialPosition: GetProtoCoordinate(laser.InitialPosition),
-				Direction: GetProtoDirection(laser.Direction),
-			},
+			Laser: GetProtoLaser(laser),
 		}
 		return &Entity{Entity: &protoLaser}
 	}
 	log.Fatalf("Cannot get proto entity for %T -> %+v", entity, entity)
 	return nil
+}
+
+func GetProtoLaser(laser *backend.Laser) *Laser {
+	timestamp, err := ptypes.TimestampProto(laser.StartTime)
+	if err != nil {
+		return nil
+	}
+	return &Laser{
+		Id:              laser.ID().String(),
+		StartTime:       timestamp,
+		InitialPosition: GetProtoCoordinate(laser.InitialPosition),
+		Direction: GetProtoDirection(laser.Direction),
+	}
 }
