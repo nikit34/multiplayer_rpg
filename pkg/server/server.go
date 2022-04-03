@@ -128,13 +128,16 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 	if err != nil {
 
 	}
+
+	startCoordinate := backend.Coordinate{X: 0, Y: 0}
+	
 	player := &backend.Player{
 		Name:           connect.Name,
 		Icon:           'P',
 		IdentifierBase: backend.IdentifierBase{UUID: playerID},
+		CurrentPosition: startCoordinate,
 	}
 
-	startCoordinate := backend.Coordinate{X: 0, Y: 0}
 	player.Move(startCoordinate)
 	s.Game.AddEntity(player)
 
