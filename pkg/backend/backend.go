@@ -121,6 +121,12 @@ type RemoveEntityChange struct {
 	Entity Identifier
 }
 
+func (game *Game) Move(id uuid.UUID, position Coordinate) {
+	game.Mu.Lock()
+	game.Entities[id].(Mover).Move(position)
+	game.Mu.Unlock()
+}
+
 func (action MoveAction) Perform(game *Game) {
 	entity := game.GetEntity(action.ID)
 	if entity == nil {
@@ -144,7 +150,7 @@ func (action MoveAction) Perform(game *Game) {
 	case DirectionRight:
 		position.X++
 	}
-	entity.(Mover).Move(position)
+	game.Move(entity.ID(), position)
 
 	change := MoveChange{
 		Entity:    entity,
@@ -262,7 +268,9 @@ func (game *Game) Start() {
 							game.RemoveEntity(laser.ID())
 						case *Player:
 							player := type_entity
-							player.Move(Coordinate{X: 0, Y: 0})
+
+							game.Move(player.ID(), Coordinate{X: 0, Y: 0})
+
 							change := PlayerRespawnChange{
 								Player: player,
 							}
