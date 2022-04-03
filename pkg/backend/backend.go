@@ -244,7 +244,7 @@ func (game *Game) Start() {
 					laser, ok := entity.(*Laser)
 					if ok {
 						hasLaser = true
-						laserOwnerID = laser.ID()
+						laserOwnerID = laser.OwnerID
 						break
 					}
 				}
@@ -283,7 +283,9 @@ func (game *Game) Start() {
 							}
 
 							if player.ID() != laserOwnerID {
+								game.Mu.Lock()
 								game.Score[laserOwnerID]++
+								game.Mu.Unlock()
 							}
 						}
 					}
