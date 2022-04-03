@@ -123,29 +123,13 @@ func setupViewPort(view *View) {
 	view.ViewPort = box
 }
 
-func NewView(game *backend.Game) *View {
-	app := tview.NewApplication()
-	pages := tview.NewPages()
-	view := &View{
-		Game:   game,
-		App:    app,
-		Pages: pages,
-		Paused: false,
-		DrawCallbacks: make([]func(), 0),
-	}
+func setupScoreModal(view *View) {
+	textView := tview.NewTextView()
+	textView.SetBorder(true).SetTitle("Score")
 
-	setupViewPort(view)
-
-	roundWait := tview.NewTextView()
-	roundWait.SetTextAlign(tview.AlignCenter).SetBorder(true).SetTitle("round complete")
-	view.RoundWait = roundWait
-
-	score := tview.NewTextView()
-	score.SetBorder(true).SetTitle("score")
-
-	updateScore := func() {
+	callback := func() {
 		text := ""
-		game.Mu.RLock()
+		view.Game.Mu.RLock()
 		for _, entity := range view.Game.Entities {
 			player, ok := entity.(*backend.Player)
 			if !ok {
@@ -158,16 +142,36 @@ func NewView(game *backend.Game) *View {
 			}
 			text += fmt.Sprintf("%s - %d\n", player.Name, score)
 		}
-		game.Mu.RUnlock()
-		score.SetText(text)
+		view.Game.Mu.RUnlock()
+		textView.SetText(text)
 	}
 
+	view.DrawCallbacks = append(view.DrawCallbacks, callback)
+	view.Pages.AddPage("score", textView, true, false)
+}
 
-	pages.AddPage("score", score, true, false)
+func NewView(game *backend.Game) *View {
+	app := tview.NewApplication()
+	pages := tview.NewPages()
+	view := &View{
+		Game:   game,
+		App:    app,
+		Pages: pages,
+		Paused: false,
+		DrawCallbacks: make([]func(), 0),
+	}
+
+	setupViewPort(view)
+	setupScoreModal(view)
+
+	roundWait := tview.NewTextView()
+	roundWait.SetTextAlign(tview.AlignCenter).SetBorder(true).SetTitle("round complete")
+	view.RoundWait = roundWait
+
+
 	pages.AddPage("roundwait", roundWait, true, false)
 	app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 		if e.Rune() == 'p' {
-			updateScore()
 			pages.ShowPage("score")
 		}
 		if e.Key() == tcell.KeyESC {
