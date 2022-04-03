@@ -16,46 +16,13 @@ type View struct {
 	App           *tview.Application
 	CurrentPlayer uuid.UUID
 	Paused        bool
+	DrawCallbacks []func()
+	ViewPort tview.Primitive
 	Pages *tview.Pages
 	RoundWait *tview.TextView
 }
 
-func NewView(game *backend.Game) *View {
-	app := tview.NewApplication()
-	pages := tview.NewPages()
-	view := &View{
-		Game:   game,
-		Paused: false,
-		App:    app,
-		Pages: pages,
-	}
-
-	roundWait := tview.NewTextView()
-	roundWait.SetTextAlign(tview.AlignCenter).SetBorder(true).SetTitle("round complete")
-	view.RoundWait = roundWait
-
-	score := tview.NewTextView()
-	score.SetBorder(true).SetTitle("score")
-
-	updateScore := func() {
-		text := ""
-		game.Mu.RLock()
-		for _, entity := range view.Game.Entities {
-			player, ok := entity.(*backend.Player)
-			if !ok {
-				continue
-			}
-
-			score, ok := view.Game.Score[player.ID()]
-			if !ok {
-				score = 0
-			}
-			text += fmt.Sprintf("%s - %d\n", player.Name, score)
-		}
-		game.Mu.RUnlock()
-		score.SetText(text)
-	}
-
+func setupViewPort(view *View) {
 	box := tview.NewBox().SetBorder(true).SetTitle("multiplayer-rpg")
 	box.SetDrawFunc(
 		func(screen tcell.Screen, x int, y int, width int, height int) (int, int, int, int) {
@@ -152,7 +119,50 @@ func NewView(game *backend.Game) *View {
 		return e
 	})
 
-	pages.AddPage("viewport", box, true, true)
+	view.Pages.AddPage("viewport", box, true, true)
+	view.ViewPort = box
+}
+
+func NewView(game *backend.Game) *View {
+	app := tview.NewApplication()
+	pages := tview.NewPages()
+	view := &View{
+		Game:   game,
+		App:    app,
+		Pages: pages,
+		Paused: false,
+		DrawCallbacks: make([]func(), 0),
+	}
+
+	setupViewPort(view)
+
+	roundWait := tview.NewTextView()
+	roundWait.SetTextAlign(tview.AlignCenter).SetBorder(true).SetTitle("round complete")
+	view.RoundWait = roundWait
+
+	score := tview.NewTextView()
+	score.SetBorder(true).SetTitle("score")
+
+	updateScore := func() {
+		text := ""
+		game.Mu.RLock()
+		for _, entity := range view.Game.Entities {
+			player, ok := entity.(*backend.Player)
+			if !ok {
+				continue
+			}
+
+			score, ok := view.Game.Score[player.ID()]
+			if !ok {
+				score = 0
+			}
+			text += fmt.Sprintf("%s - %d\n", player.Name, score)
+		}
+		game.Mu.RUnlock()
+		score.SetText(text)
+	}
+
+
 	pages.AddPage("score", score, true, false)
 	pages.AddPage("roundwait", roundWait, true, false)
 	app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
