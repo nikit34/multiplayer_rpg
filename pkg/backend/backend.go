@@ -173,6 +173,7 @@ type Game struct {
 	ActionChannel   chan Action
 	LastAction      map[string]time.Time
 	IsAuthoritative bool
+	Score map[uuid.UUID]int
 }
 
 func NewGame() *Game {
@@ -182,6 +183,7 @@ func NewGame() *Game {
 		LastAction:      make(map[string]time.Time),
 		ChangeChannel:   make(chan Change, 1),
 		IsAuthoritative: true,
+		Score: make(map[uuid.UUID]int),
 	}
 	return &game
 }
@@ -231,10 +233,12 @@ func (game *Game) Start() {
 
 				hasLaser := false
 
+				var laserOwnerID uuid.UUID
 				for _, entity := range entities {
-					_, ok := entity.(*Laser)
+					laser, ok := entity.(*Laser)
 					if ok {
 						hasLaser = true
+						laserOwnerID = laser.ID()
 						break
 					}
 				}
@@ -268,6 +272,10 @@ func (game *Game) Start() {
 
 							default:
 
+							}
+
+							if player.ID() != laserOwnerID {
+								game.Score[laserOwnerID]++
 							}
 						}
 					}
