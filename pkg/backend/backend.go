@@ -180,6 +180,8 @@ type Game struct {
 	LastAction      map[string]time.Time
 	IsAuthoritative bool
 	Score map[uuid.UUID]int
+	WaitForRound bool
+	NewRoundAt time.Time
 }
 
 func NewGame() *Game {
@@ -189,6 +191,7 @@ func NewGame() *Game {
 		LastAction:      make(map[string]time.Time),
 		ChangeChannel:   make(chan Change, 1),
 		IsAuthoritative: true,
+		WaitForRound: false,
 		Score: make(map[uuid.UUID]int),
 	}
 	return &game
@@ -204,10 +207,29 @@ type PlayerRespawnChange struct {
 	Player *Player
 }
 
+func (game *Game) AddScore(id uuid.UUID) {
+	game.Mu.Lock()
+	game.Score[id]++
+	if game.Score[id] >= 10 {
+		game.Score = make(map[uuid.UUID]int)
+		game.WaitForRound = true
+		game.NewRoundAt = time.Now().Add(time.Second * 10)
+
+		go func() {
+			time.Sleep(time.Second * 10)
+			game.WaitForRound = false
+		}()
+	}
+	game.Mu.Unlock()
+}
+
 func (game *Game) Start() {
 	go func() {
 		for {
 			action := <-game.ActionChannel
+			if game.WaitForRound {
+				continue
+			}
 			action.Perform(game)
 		}
 	}()
@@ -283,9 +305,7 @@ func (game *Game) Start() {
 							}
 
 							if player.ID() != laserOwnerID {
-								game.Mu.Lock()
-								game.Score[laserOwnerID]++
-								game.Mu.Unlock()
+								game.AddScore(laserOwnerID)
 							}
 						}
 					}
