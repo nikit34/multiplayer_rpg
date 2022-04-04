@@ -26,11 +26,15 @@ type View struct {
 }
 
 func setupViewPort(view *View) {
-	box := tview.NewBox().SetBorder(true).SetTitle("multiplayer-rpg")
+	box := tview.NewBox().SetBorder(true).
+		SetTitle("multiplayer-rpg").
+		SetBackgroundColor(tcell.ColorBlack)
 	cameraX := 0
 	cameraY := 0
 	box.SetDrawFunc(
 		func(screen tcell.Screen, x int, y int, width int, height int) (int, int, int, int) {
+			style := tcell.StyleDefault.Background(tcell.ColorBlack)
+
 			view.Game.Mu.RLock()
 
 			currentEntity := view.Game.GetEntity(view.CurrentPlayer)
@@ -63,12 +67,7 @@ func setupViewPort(view *View) {
 			centerX := (x + width/2) - cameraX
 			centerY := (y + height/2) - cameraY
 
-			for x := 1; x < width; x++ {
-				for y := 1; y < height; y++ {
-					screen.SetContent(x, y, ' ', nil, tcell.StyleDefault.Foreground(tcell.ColorWhite))
-				}
-			}
-			screen.SetContent(centerX, centerY, 'O', nil, tcell.StyleDefault.Foreground(tcell.ColorWhite))
+			screen.SetContent(centerX, centerY, 'O', nil, style.Foreground(tcell.ColorWhite))
 			view.Game.Mu.RLock()
 			for _, entity := range view.Game.Entities {
 				positioner, ok := entity.(backend.Positioner)
@@ -96,7 +95,7 @@ func setupViewPort(view *View) {
 					centerY+position.Y,
 					icon,
 					nil,
-					tcell.StyleDefault.Foreground(color),
+					style.Foreground(color),
 				)
 			}
 			view.Game.Mu.RUnlock()
