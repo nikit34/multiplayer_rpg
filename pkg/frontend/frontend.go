@@ -3,6 +3,8 @@ package frontend
 import (
 	"fmt"
 	"time"
+	"sort"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
@@ -130,6 +132,13 @@ func setupScoreModal(view *View) {
 	callback := func() {
 		text := ""
 		view.Game.Mu.RLock()
+
+		type PlayerScore struct {
+			Name string
+			Score int
+		}
+		playerScore := make([]PlayerScore, 0)
+
 		for _, entity := range view.Game.Entities {
 			player, ok := entity.(*backend.Player)
 			if !ok {
@@ -140,8 +149,27 @@ func setupScoreModal(view *View) {
 			if !ok {
 				score = 0
 			}
-			text += fmt.Sprintf("%s - %d\n", player.Name, score)
+
+			playerScore = append(playerScore, PlayerScore{
+				Name: player.Name,
+				Score: score,
+			})
 		}
+
+		sort.Slice(playerScore, func(i, j int) bool {
+			if playerScore[i].Score > playerScore[j].Score {
+				return true
+			}
+			if strings.ToLower(playerScore[i].Name) < strings.ToLower(playerScore[j].Name) {
+				return true
+			}
+			return false
+		})
+
+		for _, playerScore := range playerScore {
+			text += fmt.Sprintf("%s - %d\n", playerScore.Name, playerScore.Score)
+		}
+
 		view.Game.Mu.RUnlock()
 		textView.SetText(text)
 	}
