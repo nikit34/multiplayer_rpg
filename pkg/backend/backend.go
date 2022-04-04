@@ -59,27 +59,19 @@ const (
 type Change interface{}
 
 func (game *Game) AddEntity(entity Identifier) {
-	game.Mu.Lock()
 	game.Entities[entity.ID()] = entity
-	game.Mu.Unlock()
 }
 
 func (game *Game) UpdateEntity(entity Identifier) {
-	game.Mu.Lock()
 	game.Entities[entity.ID()] = entity
-	game.Mu.Unlock()
 }
 
 func (game *Game) GetEntity(id uuid.UUID) Identifier {
-	game.Mu.RLock()
-	defer game.Mu.RUnlock()
 	return game.Entities[id]
 }
 
 func (game *Game) RemoveEntity(id uuid.UUID) {
-	game.Mu.Lock()
 	delete(game.Entities, id)
-	game.Mu.Unlock()
 }
 
 func (game *Game) CheckLastActionTime(actionKey string, throttle int) bool {
@@ -94,9 +86,7 @@ func (game *Game) CheckLastActionTime(actionKey string, throttle int) bool {
 }
 
 func (game *Game) UpdateLastActionTime(actionKey string) {
-	game.Mu.Lock()
 	game.LastAction[actionKey] = time.Now()
-	game.Mu.Unlock()
 }
 
 type MoveAction struct {
@@ -122,9 +112,7 @@ type RemoveEntityChange struct {
 }
 
 func (game *Game) Move(id uuid.UUID, position Coordinate) {
-	game.Mu.Lock()
 	game.Entities[id].(Mover).Move(position)
-	game.Mu.Unlock()
 }
 
 func (action MoveAction) Perform(game *Game) {
@@ -209,7 +197,6 @@ type PlayerRespawnChange struct {
 }
 
 func (game *Game) AddScore(id uuid.UUID) {
-	game.Mu.Lock()
 	game.Score[id]++
 	if game.Score[id] >= 10 {
 		game.Score = make(map[uuid.UUID]int)
@@ -219,10 +206,11 @@ func (game *Game) AddScore(id uuid.UUID) {
 
 		go func() {
 			time.Sleep(time.Second * 10)
+			game.Mu.Lock()
 			game.WaitForRound = false
+			game.Mu.Unlock()
 		}()
 	}
-	game.Mu.Unlock()
 }
 
 func (game *Game) Start() {
@@ -232,7 +220,10 @@ func (game *Game) Start() {
 			if game.WaitForRound {
 				continue
 			}
+
+			game.Mu.Lock()
 			action.Perform(game)
+			game.Mu.Unlock()
 		}
 	}()
 
@@ -242,6 +233,7 @@ func (game *Game) Start() {
 
 	go func() {
 		for {
+			game.Mu.Lock()
 			collisionMap := make(map[Coordinate][]Positioner)
 
 			game.Mu.RLock()
@@ -314,6 +306,7 @@ func (game *Game) Start() {
 				}
 			}
 
+			game.Mu.Unlock()
 			time.Sleep(time.Millisecond * 20)
 		}
 	}()

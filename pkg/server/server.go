@@ -130,7 +130,7 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 	}
 
 	startCoordinate := backend.Coordinate{X: 0, Y: 0}
-	
+
 	player := &backend.Player{
 		Name:           connect.Name,
 		Icon:           'P',
@@ -142,14 +142,12 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 	s.Game.AddEntity(player)
 
 	entities := make([]*proto.Entity, 0)
-	s.Game.Mu.RLock()
 	for _, entity := range s.Game.Entities {
 		protoEntity := proto.GetProtoEntity(entity)
 		if protoEntity != nil {
 			entities = append(entities, protoEntity)
 		}
 	}
-	s.Game.Mu.RUnlock()
 
 	time.Sleep(time.Second * 1)
 

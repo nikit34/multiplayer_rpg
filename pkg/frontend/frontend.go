@@ -33,6 +33,9 @@ func setupViewPort(view *View) {
 	cameraY := 0
 	box.SetDrawFunc(
 		func(screen tcell.Screen, x int, y int, width int, height int) (int, int, int, int) {
+			view.Game.Mu.RLock()
+			defer view.Game.Mu.RUnlock()
+
 			style := tcell.StyleDefault.Background(tcell.ColorBlack)
 
 			view.Game.Mu.RLock()
@@ -41,10 +44,10 @@ func setupViewPort(view *View) {
 			if currentEntity == nil {
 				return 0, 0, 0, 0
 			}
-			currentPlayer := currentEntity.(*backend.Player)
+			currentPlayerPosition := currentEntity.(*backend.Player).Position()
 
-			cameraDiffX := float64(cameraX - currentPlayer.Position().X)
-			cameraDiffY := float64(cameraY - currentPlayer.Position().Y)
+			cameraDiffX := float64(cameraX - currentPlayerPosition.X)
+			cameraDiffY := float64(cameraY - currentPlayerPosition.Y)
 			if math.Abs(cameraDiffX) > 8 {
 				if cameraDiffX <= 0 {
 					cameraX++
@@ -60,8 +63,6 @@ func setupViewPort(view *View) {
 				}
 			}
 
-			view.Game.Mu.RUnlock()
-
 			width = width - 1
 			height = height - 1
 			centerX := (x + width/2) - cameraX
@@ -70,7 +71,7 @@ func setupViewPort(view *View) {
 			if centerX < width && centerX > 0 && centerY < height && centerY > 0 {
 				screen.SetContent(centerX, centerY, 'C', nil, style.Foreground(tcell.ColorWhite))
 			}
-			view.Game.Mu.RLock()
+
 			for _, entity := range view.Game.Entities {
 				positioner, ok := entity.(backend.Positioner)
 				if !ok {
@@ -106,7 +107,6 @@ func setupViewPort(view *View) {
 					style.Foreground(color),
 				)
 			}
-			view.Game.Mu.RUnlock()
 			return 0, 0, 0, 0
 		},
 	)
@@ -175,9 +175,10 @@ func setupScoreModal(view *View) {
 	modal := centeredModal(textView, 60, 23)
 
 	callback := func() {
-		text := ""
 		view.Game.Mu.RLock()
+		defer view.Game.Mu.RUnlock()
 
+		text := ""
 		type PlayerScore struct {
 			Name string
 			Score int
@@ -232,6 +233,9 @@ func setupRoundWaitModal(view *View) {
 	view.Pages.AddPage("roundwait", modal, true, false)
 
 	callback := func() {
+		view.Game.Mu.RLock()
+		defer view.Game.Mu.RUnlock()
+
 		if view.Game.WaitForRound {
 			view.Pages.ShowPage("roundwait")
 
