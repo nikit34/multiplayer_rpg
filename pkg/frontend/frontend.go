@@ -2,9 +2,10 @@ package frontend
 
 import (
 	"fmt"
-	"time"
+	"math"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
@@ -31,12 +32,36 @@ func setupViewPort(view *View) {
 	box.SetDrawFunc(
 		func(screen tcell.Screen, x int, y int, width int, height int) (int, int, int, int) {
 			view.Game.Mu.RLock()
-			defer view.Game.Mu.RUnlock()
+
+			currentEntity := view.Game.GetEntity(view.CurrentPlayer)
+			if currentEntity == nil {
+				return 0, 0, 0, 0
+			}
+			currentPlayer := currentEntity.(*backend.Player)
+
+			cameraDiffX := float64(cameraX - currentPlayer.Position().X)
+			cameraDiffY := float64(cameraY - currentPlayer.Position().Y)
+			if math.Abs(cameraDiffX) > 10 {
+				if cameraDiffX <= 0 {
+					cameraX++
+				} else {
+					cameraX--
+				}
+			}
+			if math.Abs(cameraDiffY) > 10 {
+				if cameraDiffY <= 0 {
+					cameraY++
+				} else {
+					cameraY--
+				}
+			}
+
+			view.Game.Mu.RUnlock()
 
 			width = width - 1
 			height = height - 1
-			centerY := y + height/2
-			centerX := x + width/2
+			centerX := (x + width/2) - cameraX
+			centerY := (y + height/2) - cameraY
 
 			for x := 1; x < width; x++ {
 				for y := 1; y < height; y++ {
@@ -50,7 +75,6 @@ func setupViewPort(view *View) {
 				if !ok {
 					continue
 				}
-				position := positioner.Position()
 
 				var icon rune
 				var color tcell.Color
@@ -66,6 +90,7 @@ func setupViewPort(view *View) {
 					continue
 				}
 
+				position := positioner.Position()
 				screen.SetContent(
 					centerX+position.X,
 					centerY+position.Y,
