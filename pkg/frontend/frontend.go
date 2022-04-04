@@ -45,14 +45,14 @@ func setupViewPort(view *View) {
 
 			cameraDiffX := float64(cameraX - currentPlayer.Position().X)
 			cameraDiffY := float64(cameraY - currentPlayer.Position().Y)
-			if math.Abs(cameraDiffX) > 10 {
+			if math.Abs(cameraDiffX) > 8 {
 				if cameraDiffX <= 0 {
 					cameraX++
 				} else {
 					cameraX--
 				}
 			}
-			if math.Abs(cameraDiffY) > 10 {
+			if math.Abs(cameraDiffY) > 8 {
 				if cameraDiffY <= 0 {
 					cameraY++
 				} else {
@@ -67,11 +67,20 @@ func setupViewPort(view *View) {
 			centerX := (x + width/2) - cameraX
 			centerY := (y + height/2) - cameraY
 
-			screen.SetContent(centerX, centerY, 'O', nil, style.Foreground(tcell.ColorWhite))
+			if centerX < width && centerX > 0 && centerY < height && centerY > 0 {
+				screen.SetContent(centerX, centerY, 'C', nil, style.Foreground(tcell.ColorWhite))
+			}
 			view.Game.Mu.RLock()
 			for _, entity := range view.Game.Entities {
 				positioner, ok := entity.(backend.Positioner)
 				if !ok {
+					continue
+				}
+
+				position := positioner.Position()
+				drawX := centerX + position.X
+				drawY := centerY + position.Y
+				if drawX >= width || drawX <= 0 || drawY >= height || drawY <= 0 {
 					continue
 				}
 
@@ -89,10 +98,9 @@ func setupViewPort(view *View) {
 					continue
 				}
 
-				position := positioner.Position()
 				screen.SetContent(
-					centerX+position.X,
-					centerY+position.Y,
+					drawX,
+					drawY,
 					icon,
 					nil,
 					style.Foreground(color),
