@@ -26,6 +26,8 @@ type View struct {
 
 func setupViewPort(view *View) {
 	box := tview.NewBox().SetBorder(true).SetTitle("multiplayer-rpg")
+	cameraX := 0
+	cameraY := 0
 	box.SetDrawFunc(
 		func(screen tcell.Screen, x int, y int, width int, height int) (int, int, int, int) {
 			view.Game.Mu.RLock()
@@ -252,18 +254,8 @@ func NewView(game *backend.Game) *View {
 func (view *View) Start() error {
 	go func() {
 		for {
-			if view.Paused {
-				continue
-			}
-			if view.Game.WaitForRound {
-				view.Pages.ShowPage("roundwait")
-				seconds := int(view.Game.NewRoundAt.Sub(time.Now()).Seconds())
-				if seconds < 0 {
-					seconds = 0
-				}
-				view.RoundWait.SetText(fmt.Sprintf("New round in %d seconds...", seconds))
-			} else {
-				view.Pages.HidePage("roundwait")
+			for _, callback := range view.DrawCallbacks {
+				view.App.QueueUpdate(callback)
 			}
 			view.App.Draw()
 			time.Sleep(17 * time.Microsecond)
