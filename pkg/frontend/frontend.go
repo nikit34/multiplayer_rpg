@@ -125,9 +125,20 @@ func setupViewPort(view *View) {
 	view.ViewPort = box
 }
 
+func centeredModal(p tview.Primitive, width, height int) tview.Primitive {
+	return tview.NewFlex().AddItem(nil, 0, 1, false).
+		AddItem(
+			tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(p, height, 1, false).
+			AddItem(nil, 0, 1, false), width, 1, false,
+		).AddItem(nil, 0, 1, false)
+}
+
 func setupScoreModal(view *View) {
 	textView := tview.NewTextView()
 	textView.SetBorder(true).SetTitle("Score")
+	modal := centeredModal(textView, 60, 23)
 
 	callback := func() {
 		text := ""
@@ -175,7 +186,38 @@ func setupScoreModal(view *View) {
 	}
 
 	view.DrawCallbacks = append(view.DrawCallbacks, callback)
-	view.Pages.AddPage("score", textView, true, false)
+	view.Pages.AddPage("score", modal, true, false)
+}
+
+func setupRoundWaitModal(view *View) {
+	textView := tview.NewTextView()
+	textView.SetTextAlign(tview.AlignCenter).
+		SetScrollable(true).SetBorder(true).SetTitle("round complete")
+
+	modal := centeredModal(textView, 60, 5)
+	view.Pages.AddPage("roundwait", modal, true, false)
+
+	callback := func() {
+		if view.Game.WaitForRound {
+			view.Pages.ShowPage("roundwait")
+
+			seconds := int(view.Game.NewRoundAt.Sub(time.Now()).Seconds())
+			if seconds < 0 {
+				seconds = 0
+			}
+
+			player := view.Game.GetEntity(view.Game.RoundWinner).(*backend.Player)
+			text := fmt.Sprintf("\nWinner: %s\n\n", player.Name)
+			text += fmt.Sprintf("New round in %d seconds...", seconds)
+			textView.SetText(text)
+		} else {
+			view.Pages.HidePage("roundwait")
+			view.App.SetFocus(view.ViewPort)
+		}
+	}
+
+	view.DrawCallbacks = append(view.DrawCallbacks, callback)
+	view.Pages.AddPage("roundwait", modal, true, false)
 }
 
 func NewView(game *backend.Game) *View {
@@ -191,19 +233,15 @@ func NewView(game *backend.Game) *View {
 
 	setupViewPort(view)
 	setupScoreModal(view)
+	setupRoundWaitModal(view)
 
-	roundWait := tview.NewTextView()
-	roundWait.SetTextAlign(tview.AlignCenter).SetBorder(true).SetTitle("round complete")
-	view.RoundWait = roundWait
-
-
-	pages.AddPage("roundwait", roundWait, true, false)
 	app.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 		if e.Rune() == 'p' {
 			pages.ShowPage("score")
 		}
 		if e.Key() == tcell.KeyESC {
 			pages.HidePage("score")
+			app.SetFocus(view.ViewPort)
 		}
 		return e
 	})
