@@ -159,20 +159,20 @@ func setupViewPort(view *View) {
 	view.ViewPort = box
 }
 
-func centeredModal(p tview.Primitive, width, height int) tview.Primitive {
+func centeredModal(p tview.Primitive) tview.Primitive {
 	return tview.NewFlex().AddItem(nil, 0, 1, false).
 		AddItem(
 			tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
-			AddItem(p, height, 1, false).
-			AddItem(nil, 0, 1, false), width, 1, false,
+			AddItem(p, 0, 1, false).
+			AddItem(nil, 0, 1, false), 0, 1, false,
 		).AddItem(nil, 0, 1, false)
 }
 
 func setupScoreModal(view *View) {
 	textView := tview.NewTextView()
 	textView.SetBorder(true).SetTitle("Score")
-	modal := centeredModal(textView, 60, 23)
+	modal := centeredModal(textView)
 
 	callback := func() {
 		view.Game.Mu.RLock()
@@ -229,7 +229,7 @@ func setupRoundWaitModal(view *View) {
 	textView.SetTextAlign(tview.AlignCenter).
 		SetScrollable(true).SetBorder(true).SetTitle("round complete")
 
-	modal := centeredModal(textView, 60, 5)
+	modal := centeredModal(textView)
 	view.Pages.AddPage("roundwait", modal, true, false)
 
 	callback := func() {
