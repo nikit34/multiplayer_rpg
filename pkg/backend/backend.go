@@ -171,6 +171,7 @@ type Game struct {
 	WaitForRound bool
 	RoundWinner uuid.UUID
 	NewRoundAt time.Time
+	Map [][]int
 }
 
 func NewGame() *Game {
@@ -182,6 +183,7 @@ func NewGame() *Game {
 		IsAuthoritative: true,
 		WaitForRound: false,
 		Score: make(map[uuid.UUID]int),
+		Map: MapDefault,
 	}
 	return &game
 }
