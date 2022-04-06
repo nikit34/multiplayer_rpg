@@ -68,6 +68,10 @@ func setupViewPort(view *View) {
 			centerX := (x + width/2) - cameraX
 			centerY := (y + height/2) - cameraY
 
+			for _, wall := range view.Game.GetMapWalls() {
+				screen.SetContent(centerX+wall.X, centerY+wall.Y, '█', nil, style.Foreground(tcell.ColorWhite))
+			}
+
 			if centerX < width && centerX > 0 && centerY < height && centerY > 0 {
 				screen.SetContent(centerX, centerY, 'C', nil, style.Foreground(tcell.ColorWhite))
 			}
