@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
@@ -78,6 +79,45 @@ func (s *GameServer) HandlePlayerRespawnChange(change backend.PlayerRespawnChang
 	s.Broadcast(&resp)
 }
 
+func (s *GameServer) HandleRoundOverChange(change backend.RoundOverChange) {
+	s.Game.Mu.RLock()
+	defer s.Game.Mu.RUnlock()
+	timestamp, err := ptypes.TimestampProto(s.Game.NewRoundAt)
+	if err != nil {
+		return
+	}
+	resp := proto.Response{
+		Action: &proto.Response_RoundOver{
+			RoundOver: &proto.RoundOver{
+				RoundWinnerId: s.Game.RoundWinner.String(),
+				NewRoundAt:    timestamp,
+			},
+		},
+	}
+	s.Broadcast(&resp)
+}
+
+func (s *GameServer) HandleRoundStartChange(change backend.RoundStartChange) {
+	players := []*proto.Player{}
+	s.Game.Mu.RLock()
+	for _, entity := range s.Game.Entities {
+		player, ok := entity.(*backend.Player)
+		if !ok {
+			continue
+		}
+		players = append(players, proto.GetProtoPlayer(player))
+	}
+	s.Game.Mu.RUnlock()
+	resp := proto.Response{
+		Action: &proto.Response_RoundStart{
+			RoundStart: &proto.RoundStart{
+				Players: players,
+			},
+		},
+	}
+	s.Broadcast(&resp)
+}
+
 func (s *GameServer) WatchChanges() {
 	go func() {
 		for {
@@ -91,6 +131,10 @@ func (s *GameServer) WatchChanges() {
 				s.HandleRemoveEntityChange(change_type)
 			case backend.PlayerRespawnChange:
 				s.HandlePlayerRespawnChange(change_type)
+			case backend.RoundOverChange:
+				s.HandleRoundOverChange(change_type)
+			case backend.RoundStartChange:
+				s.HandleRoundStartChange(change_type)
 			}
 		}
 	}()

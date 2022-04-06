@@ -240,6 +240,14 @@ func Distance(a Coordinate, b Coordinate) int {
 	return int(math.Sqrt(math.Pow(float64(b.X-a.X), 2) + math.Pow(float64(b.Y-a.Y), 2)))
 }
 
+type RoundOverChange struct {
+	Change
+}
+
+type RoundStartChange struct {
+	Change
+}
+
 func (game *Game) AddScore(id uuid.UUID) {
 	game.Score[id]++
 	if game.Score[id] >= 10 {
@@ -247,6 +255,8 @@ func (game *Game) AddScore(id uuid.UUID) {
 		game.WaitForRound = true
 		game.NewRoundAt = time.Now().Add(time.Second * 10)
 		game.RoundWinner = id
+
+		game.SendChange(RoundOverChange{})
 
 		go func() {
 			time.Sleep(time.Second * 10)
@@ -265,6 +275,7 @@ func (game *Game) AddScore(id uuid.UUID) {
 			}
 
 			game.Mu.Unlock()
+			game.SendChange(RoundStartChange{})
 		}()
 	}
 }

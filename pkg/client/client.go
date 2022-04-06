@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
@@ -138,6 +139,39 @@ func (c *GameClient) HandlePlayerRespawnResponse(resp *proto.Response) {
 	c.Game.UpdateEntity(player)
 }
 
+func (c *GameClient) HandleRoundOverResponse(resp *proto.Response) {
+	c.Game.Mu.Lock()
+	defer c.Game.Mu.Unlock()
+
+	respawn := resp.GetRoundOver()
+	roundWinner, err := uuid.Parse(respawn.RoundWinnerId)
+	if err != nil {
+		return
+	}
+	newRoundAt, err := ptypes.Timestamp(respawn.NewRoundAt)
+	if err != nil {
+		return
+	}
+
+	c.Game.RoundWinner = roundWinner
+	c.Game.NewRoundAt = newRoundAt
+	c.Game.WaitForRound = true
+	c.Game.Score = make(map[uuid.UUID]int)
+}
+
+func (c *GameClient) HandleRoundStartResponse(resp *proto.Response) {
+	c.Game.Mu.Lock()
+	defer c.Game.Mu.Unlock()
+
+	roundStart := resp.GetRoundStart()
+	c.Game.WaitForRound = false
+
+	for _, protoPlayer := range roundStart.Players {
+		player := proto.GetBackendPlayer(protoPlayer)
+		c.Game.AddEntity(player)
+	}
+}
+
 func (c *GameClient) Start() {
 	go func() {
 		for {
@@ -174,6 +208,10 @@ func (c *GameClient) Start() {
 				c.HandleRemoveEntityResponse(resp)
 			case *proto.Response_PlayerRespawn:
 				c.HandlePlayerRespawnResponse(resp)
+			case *proto.Response_RoundOver:
+				c.HandleRoundOverResponse(resp)
+			case *proto.Response_RoundStart:
+				c.HandleRoundStartResponse(resp)
 			}
 		}
 	}()
