@@ -118,10 +118,6 @@ type PlayerRespawnChange struct {
 	KilledByID uuid.UUID
 }
 
-func (game *Game) Move(id uuid.UUID, position Coordinate) {
-	game.Entities[id].(Mover).Move(position)
-}
-
 func (game *Game) SendChange(change Change) {
 	select {
 	case game.ChangeChannel <- change:
@@ -137,12 +133,22 @@ func (action MoveAction) Perform(game *Game) {
 		return
 	}
 
+	mover, ok := entity.(Mover)
+	if !ok {
+		return
+	}
+
+	positioner, ok := entity.(Positioner)
+	if !ok {
+		return
+	}
+
 	actionKey := fmt.Sprintf("%T:%s", action, entity.ID().String())
 	if !game.CheckLastActionTime(actionKey, 50) {
 		return
 	}
 
-	position := entity.(Positioner).Position()
+	position := positioner.Position()
 
 	switch action.Direction {
 	case DirectionUp:
@@ -161,7 +167,7 @@ func (action MoveAction) Perform(game *Game) {
 		}
 	}
 
-	game.Move(entity.ID(), position)
+	mover.Move(position)
 
 	change := MoveChange{
 		Entity:    entity,
@@ -222,13 +228,11 @@ type RoundStartChange struct {
 	Change
 }
 
-func (game *Game) AddScore(id uuid.UUID) {
-	game.Score[id]++
-	if game.Score[id] >= 10 {
-		game.Score = make(map[uuid.UUID]int)
+func (game *Game) StartNewRound(roundWinner uuid.UUID) {
+	game.Score = make(map[uuid.UUID]int)
 		game.WaitForRound = true
 		game.NewRoundAt = time.Now().Add(time.Second * 10)
-		game.RoundWinner = id
+		game.RoundWinner = roundWinner
 
 		game.SendChange(RoundOverChange{})
 
@@ -251,6 +255,12 @@ func (game *Game) AddScore(id uuid.UUID) {
 			game.Mu.Unlock()
 			game.SendChange(RoundStartChange{})
 		}()
+}
+
+func (game *Game) AddScore(id uuid.UUID) {
+	game.Score[id]++
+	if game.Score[id] >= 10 {
+		game.StartNewRound(id)
 	}
 }
 
