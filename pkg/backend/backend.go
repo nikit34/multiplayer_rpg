@@ -111,6 +111,24 @@ type RemoveEntityChange struct {
 	Entity Identifier
 }
 
+func (game *Game) GetMapWalls() []Coordinate {
+	mapCenterX := len(game.Map[0]) / 2
+	mapCenterY := len(game.Map) / 2
+	walls := make([]Coordinate, 0)
+	for mapY, row := range game.Map {
+		for mapX, col := range row {
+			if col != 1 {
+				continue
+			}
+			walls = append(walls, Coordinate{
+				X: mapX - mapCenterX,
+				Y: mapY - mapCenterY,
+			})
+		}
+	}
+	return walls
+}
+
 func (game *Game) Move(id uuid.UUID, position Coordinate) {
 	game.Entities[id].(Mover).Move(position)
 }
@@ -138,6 +156,13 @@ func (action MoveAction) Perform(game *Game) {
 	case DirectionRight:
 		position.X++
 	}
+
+	for _, wall := range game.GetMapWalls() {
+		if position == wall {
+			return
+		}
+	}
+
 	game.Move(entity.ID(), position)
 
 	change := MoveChange{
@@ -303,6 +328,26 @@ func (game *Game) Start() {
 
 						default:
 
+						}
+						game.RemoveEntity(entity.ID())
+					}
+				}
+			}
+
+			for _, wall := range game.GetMapWalls() {
+				entities, ok := collisionMap[wall]
+				if !ok {
+					continue
+				}
+				for _, entity := range entities {
+					switch entity.(type) {
+					case *Laser:
+						change := RemoveEntityChange{
+							Entity: entity,
+						}
+						select {
+						case game.ChangeChannel <- change:
+						default:
 						}
 						game.RemoveEntity(entity.ID())
 					}
