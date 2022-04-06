@@ -2,9 +2,9 @@ package backend
 
 import (
 	"fmt"
+	"math"
 	"sync"
 	"time"
-	"math"
 
 	"github.com/google/uuid"
 )
@@ -114,7 +114,7 @@ type RemoveEntityChange struct {
 
 type PlayerRespawnChange struct {
 	Change
-	Player *Player
+	Player     *Player
 	KilledByID uuid.UUID
 }
 
@@ -184,11 +184,11 @@ type Game struct {
 	ActionChannel   chan Action
 	LastAction      map[string]time.Time
 	IsAuthoritative bool
-	Score map[uuid.UUID]int
-	WaitForRound bool
-	RoundWinner uuid.UUID
-	NewRoundAt time.Time
-	Map [][]rune
+	Score           map[uuid.UUID]int
+	WaitForRound    bool
+	RoundWinner     uuid.UUID
+	NewRoundAt      time.Time
+	Map             [][]rune
 }
 
 func NewGame() *Game {
@@ -198,9 +198,9 @@ func NewGame() *Game {
 		LastAction:      make(map[string]time.Time),
 		ChangeChannel:   make(chan Change, 1),
 		IsAuthoritative: true,
-		WaitForRound: false,
-		Score: make(map[uuid.UUID]int),
-		Map: MapDefault,
+		WaitForRound:    false,
+		Score:           make(map[uuid.UUID]int),
+		Map:             MapDefault,
 	}
 	return &game
 }
@@ -209,6 +209,7 @@ type LaserRemoveChange struct {
 	Change
 	ID uuid.UUID
 }
+
 func Distance(a Coordinate, b Coordinate) int {
 	return int(math.Sqrt(math.Pow(float64(b.X-a.X), 2) + math.Pow(float64(b.Y-a.Y), 2)))
 }
@@ -243,7 +244,7 @@ func (game *Game) AddScore(id uuid.UUID) {
 				if !ok {
 					continue
 				}
-				player.CurrentPosition = spawnPoints[i % len(spawnPoints)]
+				player.CurrentPosition = spawnPoints[i%len(spawnPoints)]
 				i++
 			}
 
@@ -327,7 +328,7 @@ func (game *Game) Start() {
 						game.Move(player.ID(), spawnPoint)
 
 						change := PlayerRespawnChange{
-							Player: player,
+							Player:     player,
 							KilledByID: laserOwnerID,
 						}
 

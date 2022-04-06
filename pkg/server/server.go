@@ -71,7 +71,7 @@ func (s *GameServer) HandlePlayerRespawnChange(change backend.PlayerRespawnChang
 	resp := proto.Response{
 		Action: &proto.Response_PlayerRespawn{
 			PlayerRespawn: &proto.PlayerRespawn{
-				Player: proto.GetProtoPlayer(change.Player),
+				Player:     proto.GetProtoPlayer(change.Player),
 				KilledById: change.KilledByID.String(),
 			},
 		},
@@ -183,9 +183,9 @@ func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_Str
 	startCoordinate := backend.Coordinate{X: 0, Y: 0}
 
 	player := &backend.Player{
-		Name:           connect.Name,
-		Icon:           'P',
-		IdentifierBase: backend.IdentifierBase{UUID: playerID},
+		Name:            connect.Name,
+		Icon:            'P',
+		IdentifierBase:  backend.IdentifierBase{UUID: playerID},
 		CurrentPosition: startCoordinate,
 	}
 
@@ -252,7 +252,7 @@ func (s *GameServer) HandleLaserRequest(playerID uuid.UUID, req *proto.Request, 
 
 	s.Game.ActionChannel <- backend.LaserAction{
 		OwnerID:   playerID,
-		ID: id,
+		ID:        id,
 		Direction: proto.GetBackendDirection(laser.Direction),
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"io"
 	"log"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
@@ -148,13 +147,9 @@ func (c *GameClient) HandleRoundOverResponse(resp *proto.Response) {
 	if err != nil {
 		return
 	}
-	newRoundAt, err := ptypes.Timestamp(respawn.NewRoundAt)
-	if err != nil {
-		return
-	}
 
 	c.Game.RoundWinner = roundWinner
-	c.Game.NewRoundAt = newRoundAt
+	c.Game.NewRoundAt = respawn.NewRoundAt.AsTime()
 	c.Game.WaitForRound = true
 	c.Game.Score = make(map[uuid.UUID]int)
 }

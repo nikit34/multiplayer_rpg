@@ -13,7 +13,7 @@ type Laser struct {
 	Positioner
 	InitialPosition Coordinate
 	Direction       Direction
-	OwnerID uuid.UUID
+	OwnerID         uuid.UUID
 	StartTime       time.Time
 }
 
@@ -37,7 +37,7 @@ func (laser *Laser) Position() Coordinate {
 
 type LaserAction struct {
 	Direction Direction
-	ID uuid.UUID
+	ID        uuid.UUID
 	OwnerID   uuid.UUID
 }
 
@@ -56,7 +56,7 @@ func (action LaserAction) Perform(game *Game) {
 		InitialPosition: entity.(Positioner).Position(),
 		StartTime:       time.Now(),
 		Direction:       action.Direction,
-		OwnerID: action.OwnerID,
+		OwnerID:         action.OwnerID,
 		IdentifierBase:  IdentifierBase{action.ID},
 	}
 

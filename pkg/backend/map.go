@@ -1,6 +1,5 @@
 package backend
 
-
 func (game *Game) GetMapSymbols() map[rune][]Coordinate {
 	mapCenterX := len(game.Map[0]) / 2
 	mapCenterY := len(game.Map) / 2

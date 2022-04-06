@@ -20,9 +20,9 @@ type View struct {
 	CurrentPlayer uuid.UUID
 	Paused        bool
 	DrawCallbacks []func()
-	ViewPort tview.Primitive
-	Pages *tview.Pages
-	RoundWait *tview.TextView
+	ViewPort      tview.Primitive
+	Pages         *tview.Pages
+	RoundWait     *tview.TextView
 }
 
 func setupViewPort(view *View) {
@@ -152,7 +152,7 @@ func setupViewPort(view *View) {
 		if laserDirection != backend.DirectionStop {
 			view.Game.ActionChannel <- backend.LaserAction{
 				OwnerID:   view.CurrentPlayer,
-				ID: uuid.New(),
+				ID:        uuid.New(),
 				Direction: laserDirection,
 			}
 		}
@@ -167,9 +167,9 @@ func centeredModal(p tview.Primitive) tview.Primitive {
 	return tview.NewFlex().AddItem(nil, 0, 1, false).
 		AddItem(
 			tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 0, 1, false).
-			AddItem(p, 0, 1, false).
-			AddItem(nil, 0, 1, false), 0, 1, false,
+				AddItem(nil, 0, 1, false).
+				AddItem(p, 0, 1, false).
+				AddItem(nil, 0, 1, false), 0, 1, false,
 		).AddItem(nil, 0, 1, false)
 }
 
@@ -184,7 +184,7 @@ func setupScoreModal(view *View) {
 
 		text := ""
 		type PlayerScore struct {
-			Name string
+			Name  string
 			Score int
 		}
 		playerScore := make([]PlayerScore, 0)
@@ -201,7 +201,7 @@ func setupScoreModal(view *View) {
 			}
 
 			playerScore = append(playerScore, PlayerScore{
-				Name: player.Name,
+				Name:  player.Name,
 				Score: score,
 			})
 		}
@@ -267,10 +267,10 @@ func NewView(game *backend.Game) *View {
 	app := tview.NewApplication()
 	pages := tview.NewPages()
 	view := &View{
-		Game:   game,
-		App:    app,
-		Pages: pages,
-		Paused: false,
+		Game:          game,
+		App:           app,
+		Pages:         pages,
+		Paused:        false,
 		DrawCallbacks: make([]func(), 0),
 	}
 
