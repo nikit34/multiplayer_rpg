@@ -251,6 +251,18 @@ func (game *Game) AddScore(id uuid.UUID) {
 			time.Sleep(time.Second * 10)
 			game.Mu.Lock()
 			game.WaitForRound = false
+
+			i := 0
+			spawnPoints := game.GetMapSpawnPoints()
+			for _, entity := range game.Entities {
+				player, ok := entity.(*Player)
+				if !ok {
+					continue
+				}
+				player.CurrentPosition = spawnPoints[i % len(spawnPoints)]
+				i++
+			}
+
 			game.Mu.Unlock()
 		}()
 	}
