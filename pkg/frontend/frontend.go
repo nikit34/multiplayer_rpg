@@ -209,8 +209,9 @@ func setupScoreModal(view *View) {
 		sort.Slice(playerScore, func(i, j int) bool {
 			if playerScore[i].Score > playerScore[j].Score {
 				return true
-			}
-			if strings.ToLower(playerScore[i].Name) < strings.ToLower(playerScore[j].Name) {
+			} else if playerScore[i].Score < playerScore[j].Score {
+				return false
+			} else if strings.ToLower(playerScore[i].Name) < strings.ToLower(playerScore[j].Name) {
 				return true
 			}
 			return false
@@ -298,7 +299,7 @@ func (view *View) Start() error {
 				view.App.QueueUpdate(callback)
 			}
 			view.App.Draw()
-			time.Sleep(17 * time.Microsecond)
+			time.Sleep(17 * time.Millisecond)
 		}
 	}()
 
