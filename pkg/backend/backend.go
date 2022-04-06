@@ -228,40 +228,41 @@ type RoundStartChange struct {
 	Change
 }
 
-func (game *Game) StartNewRound(roundWinner uuid.UUID) {
-	game.Score = make(map[uuid.UUID]int)
-		game.WaitForRound = true
-		game.NewRoundAt = time.Now().Add(time.Second * 10)
-		game.RoundWinner = roundWinner
+func (game *Game) StartNewRound() {
+	game.WaitForRound = false
+	game.Score = map[uuid.UUID]int{}
+	i := 0
+	spawnPoints := game.GetMapSpawnPoints()
+	for _, entity := range game.Entities {
+		player, ok := entity.(*Player)
+		if !ok {
+			continue
+		}
 
-		game.sendChange(RoundOverChange{})
+		player.Move(spawnPoints[i % len(spawnPoints)])
+		i++
+	}
+	game.sendChange(RoundStartChange{})
+}
 
-		go func() {
-			time.Sleep(time.Second * 10)
-			game.Mu.Lock()
-			game.WaitForRound = false
+func (game *Game) QueueNewRound(roundWinner uuid.UUID, newRoundAt time.Time) {
+	game.WaitForRound = true
+	game.NewRoundAt = newRoundAt
+	game.RoundWinner = roundWinner
 
-			i := 0
-			spawnPoints := game.GetMapSpawnPoints()
-			for _, entity := range game.Entities {
-				player, ok := entity.(*Player)
-				if !ok {
-					continue
-				}
-				player.CurrentPosition = spawnPoints[i%len(spawnPoints)]
-				i++
-			}
+	game.sendChange(RoundOverChange{})
 
-			game.Mu.Unlock()
-			game.sendChange(RoundStartChange{})
-		}()
+	go func() {
+		time.Sleep(time.Second * 10)
+
+		game.Mu.Lock()
+		game.StartNewRound()
+		game.Mu.Unlock()
+	}()
 }
 
 func (game *Game) AddScore(id uuid.UUID) {
 	game.Score[id]++
-	if game.Score[id] >= 10 {
-		game.StartNewRound(id)
-	}
 }
 
 func (game *Game) watchActions() {
@@ -345,6 +346,10 @@ func (game *Game) watchCollisions() {
 
 					game.sendChange(change)
 					game.AddScore(laserOwnerID)
+
+					if game.Score[laserOwnerID] >= 10 {
+						game.QueueNewRound(laserOwnerID, time.Now().Add(time.Second * 10))
+					}
 
 				case *Laser:
 					change := RemoveEntityChange{

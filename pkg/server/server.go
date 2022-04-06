@@ -26,11 +26,15 @@ type GameServer struct {
 func (s *GameServer) broadcast(resp *proto.Response) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for name, client := range s.clients {
+
+	for id, client := range s.clients {
 		if err := client.StreamServer.Send(resp); err != nil {
-			log.Printf("broadcast error %v", err)
+			log.Printf("broadcast error %v, removing %s", err, id)
+			s.game.Mu.Lock()
+			s.removeClient(id)
+			s.game.Mu.Unlock()
 		}
-		log.Printf("broadcasted %+v message to %s", resp, name)
+		log.Printf("broadcasted %+v message to %s", resp, id)
 	}
 }
 
@@ -149,7 +153,7 @@ func NewGameServer(game *backend.Game) *GameServer {
 	return server
 }
 
-func (s *GameServer) removeClient(playerID uuid.UUID, srv proto.Game_StreamServer) {
+func (s *GameServer) removeClient(playerID uuid.UUID) {
 	s.game.Mu.Lock()
 	defer s.game.Mu.Unlock()
 
@@ -274,7 +278,9 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 		if err != nil {
 			log.Printf("receive error %v", err)
 			if isConnected {
-				s.removeClient(playerID, srv)
+				s.game.Mu.Lock()
+				s.removeClient(playerID)
+				s.game.Mu.Unlock()
 			}
 			continue
 		}
