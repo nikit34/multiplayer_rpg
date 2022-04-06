@@ -265,43 +265,44 @@ func (game *Game) Start() {
 					}
 				}
 
-				if hasLaser {
-					for _, entity := range entities {
-						switch type_entity := entity.(type) {
-						case *Laser:
-							laser := type_entity
-							change := RemoveEntityChange{
-								Entity: laser,
-							}
+				if !hasLaser {
+					continue
+				}
 
-							select {
-							case game.ChangeChannel <- change:
+				for _, entity := range entities {
+					switch type_entity := entity.(type) {
+					case *Player:
+						player := type_entity
 
-							default:
+						game.Move(player.ID(), Coordinate{X: 0, Y: 0})
 
-							}
-
-							game.RemoveEntity(laser.ID())
-						case *Player:
-							player := type_entity
-
-							game.Move(player.ID(), Coordinate{X: 0, Y: 0})
-
-							change := PlayerRespawnChange{
-								Player: player,
-							}
-
-							select {
-							case game.ChangeChannel <- change:
-
-							default:
-
-							}
-
-							if player.ID() != laserOwnerID {
-								game.AddScore(laserOwnerID)
-							}
+						change := PlayerRespawnChange{
+							Player: player,
 						}
+
+						select {
+						case game.ChangeChannel <- change:
+
+						default:
+
+						}
+
+						if player.ID() != laserOwnerID {
+							game.AddScore(laserOwnerID)
+						}
+
+					default:
+						change := RemoveEntityChange{
+							Entity: entity,
+						}
+
+						select {
+						case game.ChangeChannel <- change:
+
+						default:
+
+						}
+						game.RemoveEntity(entity.ID())
 					}
 				}
 			}
