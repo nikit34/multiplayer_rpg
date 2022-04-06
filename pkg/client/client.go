@@ -73,7 +73,7 @@ func (c *GameClient) HandleAddEntityChange(change backend.AddEntityChange) {
 	case *backend.Laser:
 		req := proto.Request{
 			Action: &proto.Request_Laser{
-				Laser: proto.GetProtoEntity(laser).GetLaser(),
+				Laser: proto.GetProtoLaser(laser),
 			},
 		}
 		c.Stream.Send(&req)
@@ -123,10 +123,18 @@ func (c *GameClient) HandlePlayerRespawnResponse(resp *proto.Response) {
 	defer c.Game.Mu.Unlock()
 
 	respawn := resp.GetPlayerRespawn()
+
+	killedByID, err := uuid.Parse(respawn.KilledById)
+	if err != nil {
+		return
+	}
+
 	player := proto.GetBackendPlayer(respawn.Player)
 	if player == nil {
 		return
 	}
+
+	c.Game.AddScore(killedByID)
 	c.Game.UpdateEntity(player)
 }
 

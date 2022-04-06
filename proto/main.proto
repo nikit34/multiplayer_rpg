@@ -76,6 +76,7 @@ message RemoveEntity {
 
 message PlayerRespawn {
     Player player = 1;
+    string killedById = 2;
 }
 
 message Response {

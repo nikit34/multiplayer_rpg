@@ -71,6 +71,7 @@ func (s *GameServer) HandlePlayerRespawnChange(change backend.PlayerRespawnChang
 		Action: &proto.Response_PlayerRespawn{
 			PlayerRespawn: &proto.PlayerRespawn{
 				Player: proto.GetProtoPlayer(change.Player),
+				KilledById: change.KilledByID.String(),
 			},
 		},
 	}

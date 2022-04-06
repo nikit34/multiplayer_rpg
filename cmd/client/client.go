@@ -33,8 +33,6 @@ func main() {
 
 	game.Start()
 
-	playerName := randSeq(6)
-
 	conn, err := grpc.Dial(":8888", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("can not connect with server %v", err)
@@ -64,6 +62,7 @@ func main() {
 	client.Start()
 
 	playerID := uuid.New()
+	playerName := randSeq(6)
 	client.Connect(playerID, playerName)
 
 	view.Start()

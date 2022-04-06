@@ -112,6 +112,12 @@ type RemoveEntityChange struct {
 	Entity Identifier
 }
 
+type PlayerRespawnChange struct {
+	Change
+	Player *Player
+	KilledByID uuid.UUID
+}
+
 func (game *Game) GetMapSymbols() map[rune][]Coordinate {
 	mapCenterX := len(game.Map[0]) / 2
 	mapCenterY := len(game.Map) / 2
@@ -234,11 +240,6 @@ func Distance(a Coordinate, b Coordinate) int {
 	return int(math.Sqrt(math.Pow(float64(b.X-a.X), 2) + math.Pow(float64(b.Y-a.Y), 2)))
 }
 
-type PlayerRespawnChange struct {
-	Change
-	Player *Player
-}
-
 func (game *Game) AddScore(id uuid.UUID) {
 	game.Score[id]++
 	if game.Score[id] >= 10 {
@@ -343,6 +344,7 @@ func (game *Game) Start() {
 
 						change := PlayerRespawnChange{
 							Player: player,
+							KilledByID: laserOwnerID,
 						}
 
 						game.SendChange(change)
