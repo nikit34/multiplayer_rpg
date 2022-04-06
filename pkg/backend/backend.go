@@ -314,7 +314,14 @@ func (game *Game) Start() {
 					case *Player:
 						player := type_entity
 
-						game.Move(player.ID(), Coordinate{X: 0, Y: 0})
+						spawnPoints := game.GetMapSpawnPoints()
+						spawnPoint := spawnPoints[0]
+						for _, sp := range game.GetMapSpawnPoints() {
+							if Distance(player.Position(), sp) > Distance(player.Position(), spawnPoint) {
+								spawnPoint = sp
+							}
+						}
+						game.Move(player.ID(), spawnPoint)
 
 						change := PlayerRespawnChange{
 							Player: player,
