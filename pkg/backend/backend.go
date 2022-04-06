@@ -134,6 +134,15 @@ func (game *Game) Move(id uuid.UUID, position Coordinate) {
 	game.Entities[id].(Mover).Move(position)
 }
 
+func (game *Game) SendChange(change Change) {
+	select {
+	case game.ChangeChannel <- change:
+
+	default:
+
+	}
+}
+
 func (action MoveAction) Perform(game *Game) {
 	entity := game.GetEntity(action.ID)
 	if entity == nil {
@@ -172,13 +181,7 @@ func (action MoveAction) Perform(game *Game) {
 		Position:  position,
 	}
 
-	select {
-	case game.ChangeChannel <- change:
-
-	default:
-
-	}
-
+	game.SendChange(change)
 	game.UpdateLastActionTime(actionKey)
 }
 
@@ -313,6 +316,9 @@ func (game *Game) Start() {
 					switch type_entity := entity.(type) {
 					case *Player:
 						player := type_entity
+						if player.ID() == laserOwnerID {
+							continue
+						}
 
 						spawnPoints := game.GetMapSpawnPoints()
 						spawnPoint := spawnPoints[0]
@@ -327,28 +333,15 @@ func (game *Game) Start() {
 							Player: player,
 						}
 
-						select {
-						case game.ChangeChannel <- change:
-
-						default:
-
-						}
-
-						if player.ID() != laserOwnerID {
-							game.AddScore(laserOwnerID)
-						}
+						game.SendChange(change)
+						game.AddScore(laserOwnerID)
 
 					default:
 						change := RemoveEntityChange{
 							Entity: entity,
 						}
 
-						select {
-						case game.ChangeChannel <- change:
-
-						default:
-
-						}
+						game.SendChange(change)
 						game.RemoveEntity(entity.ID())
 					}
 				}
@@ -365,10 +358,8 @@ func (game *Game) Start() {
 						change := RemoveEntityChange{
 							Entity: entity,
 						}
-						select {
-						case game.ChangeChannel <- change:
-						default:
-						}
+
+						game.SendChange(change)
 						game.RemoveEntity(entity.ID())
 					}
 				}
