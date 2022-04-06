@@ -75,9 +75,9 @@ func (game *Game) RemoveEntity(id uuid.UUID) {
 	delete(game.Entities, id)
 }
 
-func (game *Game) CheckLastActionTime(actionKey string, throttle int) bool {
+func (game *Game) checkLastActionTime(actionKey string, throttle int) bool {
 	game.Mu.RLock()
-	lastAction, ok := game.LastAction[actionKey]
+	lastAction, ok := game.lastAction[actionKey]
 	game.Mu.RUnlock()
 
 	if ok && lastAction.After(time.Now().Add(-1*time.Duration(throttle)*time.Millisecond)) {
@@ -86,8 +86,8 @@ func (game *Game) CheckLastActionTime(actionKey string, throttle int) bool {
 	return true
 }
 
-func (game *Game) UpdateLastActionTime(actionKey string) {
-	game.LastAction[actionKey] = time.Now()
+func (game *Game) updateLastActionTime(actionKey string) {
+	game.lastAction[actionKey] = time.Now()
 }
 
 type MoveAction struct {
@@ -118,7 +118,7 @@ type PlayerRespawnChange struct {
 	KilledByID uuid.UUID
 }
 
-func (game *Game) SendChange(change Change) {
+func (game *Game) sendChange(change Change) {
 	select {
 	case game.ChangeChannel <- change:
 
@@ -144,7 +144,7 @@ func (action MoveAction) Perform(game *Game) {
 	}
 
 	actionKey := fmt.Sprintf("%T:%s", action, entity.ID().String())
-	if !game.CheckLastActionTime(actionKey, 50) {
+	if !game.checkLastActionTime(actionKey, 50) {
 		return
 	}
 
@@ -175,8 +175,8 @@ func (action MoveAction) Perform(game *Game) {
 		Position:  position,
 	}
 
-	game.SendChange(change)
-	game.UpdateLastActionTime(actionKey)
+	game.sendChange(change)
+	game.updateLastActionTime(actionKey)
 }
 
 type Action interface {
@@ -188,25 +188,25 @@ type Game struct {
 	Mu              sync.RWMutex
 	ChangeChannel   chan Change
 	ActionChannel   chan Action
-	LastAction      map[string]time.Time
+	lastAction      map[string]time.Time
 	IsAuthoritative bool
 	Score           map[uuid.UUID]int
 	WaitForRound    bool
 	RoundWinner     uuid.UUID
 	NewRoundAt      time.Time
-	Map             [][]rune
+	gameMap             [][]rune
 }
 
 func NewGame() *Game {
 	game := Game{
 		Entities:        make(map[uuid.UUID]Identifier),
 		ActionChannel:   make(chan Action, 1),
-		LastAction:      make(map[string]time.Time),
+		lastAction:      make(map[string]time.Time),
 		ChangeChannel:   make(chan Change, 1),
 		IsAuthoritative: true,
 		WaitForRound:    false,
 		Score:           make(map[uuid.UUID]int),
-		Map:             MapDefault,
+		gameMap:             MapDefault,
 	}
 	return &game
 }
@@ -216,7 +216,7 @@ type LaserRemoveChange struct {
 	ID uuid.UUID
 }
 
-func Distance(a Coordinate, b Coordinate) int {
+func distance(a Coordinate, b Coordinate) int {
 	return int(math.Sqrt(math.Pow(float64(b.X-a.X), 2) + math.Pow(float64(b.Y-a.Y), 2)))
 }
 
@@ -234,7 +234,7 @@ func (game *Game) StartNewRound(roundWinner uuid.UUID) {
 		game.NewRoundAt = time.Now().Add(time.Second * 10)
 		game.RoundWinner = roundWinner
 
-		game.SendChange(RoundOverChange{})
+		game.sendChange(RoundOverChange{})
 
 		go func() {
 			time.Sleep(time.Second * 10)
@@ -253,7 +253,7 @@ func (game *Game) StartNewRound(roundWinner uuid.UUID) {
 			}
 
 			game.Mu.Unlock()
-			game.SendChange(RoundStartChange{})
+			game.sendChange(RoundStartChange{})
 		}()
 }
 
@@ -332,7 +332,7 @@ func (game *Game) watchCollisions() {
 					spawnPoints := game.GetMapSpawnPoints()
 					spawnPoint := spawnPoints[0]
 					for _, sp := range game.GetMapSpawnPoints() {
-						if Distance(player.Position(), sp) > Distance(player.Position(), spawnPoint) {
+						if distance(player.Position(), sp) > distance(player.Position(), spawnPoint) {
 							spawnPoint = sp
 						}
 					}
@@ -343,7 +343,7 @@ func (game *Game) watchCollisions() {
 						KilledByID: laserOwnerID,
 					}
 
-					game.SendChange(change)
+					game.sendChange(change)
 					game.AddScore(laserOwnerID)
 
 				case *Laser:
@@ -351,7 +351,7 @@ func (game *Game) watchCollisions() {
 						Entity: entity,
 					}
 
-					game.SendChange(change)
+					game.sendChange(change)
 					game.RemoveEntity(entity.ID())
 				}
 			}
@@ -370,7 +370,7 @@ func (game *Game) watchCollisions() {
 						Entity: entity,
 					}
 
-					game.SendChange(change)
+					game.sendChange(change)
 					game.RemoveEntity(entity.ID())
 				}
 			}
