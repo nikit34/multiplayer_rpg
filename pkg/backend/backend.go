@@ -234,7 +234,7 @@ func (game *Game) Start() {
 	go func() {
 		for {
 			game.Mu.Lock()
-			collisionMap := make(map[Coordinate][]Positioner)
+			collisionMap := make(map[Coordinate][]Identifier)
 
 			game.Mu.RLock()
 			for _, entity := range game.Entities {
@@ -244,7 +244,7 @@ func (game *Game) Start() {
 				}
 
 				position := positioner.Position()
-				collisionMap[position] = append(collisionMap[position], positioner)
+				collisionMap[position] = append(collisionMap[position], entity)
 			}
 			game.Mu.RUnlock()
 
