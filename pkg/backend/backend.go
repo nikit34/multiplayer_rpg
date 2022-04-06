@@ -117,7 +117,7 @@ func (game *Game) GetMapWalls() []Coordinate {
 	walls := make([]Coordinate, 0)
 	for mapY, row := range game.Map {
 		for mapX, col := range row {
-			if col != 1 {
+			if col != '█' {
 				continue
 			}
 			walls = append(walls, Coordinate{
@@ -196,7 +196,7 @@ type Game struct {
 	WaitForRound bool
 	RoundWinner uuid.UUID
 	NewRoundAt time.Time
-	Map [][]int
+	Map [][]rune
 }
 
 func NewGame() *Game {
