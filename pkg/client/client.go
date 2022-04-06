@@ -53,6 +53,9 @@ func (c *GameClient) HandleMoveChange(change backend.MoveChange) {
 }
 
 func (c *GameClient) HandleInitializeResponse(resp *proto.Response) {
+	c.Game.Mu.Lock()
+	defer c.Game.Mu.Unlock()
+
 	init := resp.GetInitialize()
 	for _, entity := range init.Entities {
 		backendEntity := proto.GetBackendEntity(entity)
@@ -80,6 +83,9 @@ func (c *GameClient) HandleAddEntityChange(change backend.AddEntityChange) {
 }
 
 func (c *GameClient) HandleAddEntityResponse(resp *proto.Response) {
+	c.Game.Mu.Lock()
+	defer c.Game.Mu.Unlock()
+
 	add := resp.GetAddEntity()
 	entity := proto.GetBackendEntity(add.Entity)
 	if entity == nil {
@@ -89,6 +95,9 @@ func (c *GameClient) HandleAddEntityResponse(resp *proto.Response) {
 }
 
 func (c *GameClient) HandleUpdateEntityResponse(resp *proto.Response) {
+	c.Game.Mu.Lock()
+	defer c.Game.Mu.Unlock()
+
 	update := resp.GetUpdateEntity()
 	entity := proto.GetBackendEntity(update.Entity)
 	if entity == nil {
@@ -98,6 +107,9 @@ func (c *GameClient) HandleUpdateEntityResponse(resp *proto.Response) {
 }
 
 func (c *GameClient) HandleRemoveEntityResponse(resp *proto.Response) {
+	c.Game.Mu.Lock()
+	defer c.Game.Mu.Unlock()
+
 	remove := resp.GetRemoveEntity()
 	id, err := uuid.Parse(remove.Id)
 	if err != nil {
@@ -107,6 +119,9 @@ func (c *GameClient) HandleRemoveEntityResponse(resp *proto.Response) {
 }
 
 func (c *GameClient) HandlePlayerRespawnResponse(resp *proto.Response) {
+	c.Game.Mu.Lock()
+	defer c.Game.Mu.Unlock()
+
 	respawn := resp.GetPlayerRespawn()
 	player := proto.GetBackendPlayer(respawn.Player)
 	if player == nil {

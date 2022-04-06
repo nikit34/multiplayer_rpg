@@ -24,13 +24,13 @@ type GameServer struct {
 
 func (s *GameServer) Broadcast(resp *proto.Response) {
 	s.Mux.RLock()
+	defer s.Mux.RUnlock()
 	for name, client := range s.Clients {
 		if err := client.StreamServer.Send(resp); err != nil {
 			log.Printf("broadcast error %v", err)
 		}
 		log.Printf("broadcasted %+v message to %s", resp, name)
 	}
-	s.Mux.RUnlock()
 }
 
 func (s *GameServer) HandleMoveChange(change backend.MoveChange) {
@@ -105,6 +105,9 @@ func NewGameServer(game *backend.Game) *GameServer {
 }
 
 func (s *GameServer) RemoveClient(playerID uuid.UUID, srv proto.Game_StreamServer) {
+	s.Game.Mu.Lock()
+	defer s.Game.Mu.Unlock()
+
 	s.Mux.Lock()
 	delete(s.Clients, playerID)
 	s.Mux.Unlock()
@@ -122,6 +125,9 @@ func (s *GameServer) RemoveClient(playerID uuid.UUID, srv proto.Game_StreamServe
 }
 
 func (s *GameServer) HandleConnectRequest(req *proto.Request, srv proto.Game_StreamServer) uuid.UUID {
+	s.Game.Mu.Lock()
+	defer s.Game.Mu.Unlock()
+
 	connect := req.GetConnect()
 
 	playerID, err := uuid.Parse(connect.Id)
