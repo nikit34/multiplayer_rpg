@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"flag"
 	"log"
 	"net"
 
@@ -12,7 +14,10 @@ import (
 )
 
 func main() {
-	lis, err := net.Listen("tcp", ":8888")
+	port := *flag.Int("port", 8888, "Port to listen on")
+	log.Printf("listening on port %d", port)
+
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
