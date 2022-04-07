@@ -73,17 +73,6 @@ func setupViewPort(view *View) {
 			centerX := (x + width/2) - cameraX
 			centerY := (y + height/2) - cameraY
 
-			for _, wall := range view.Game.GetMapWalls() {
-				x := centerX + wall.X
-				y := centerY + wall.Y
-
-				if !withinDrawBounds(x, y, width, height) {
-					continue
-				}
-
-				screen.SetContent(x, y, '█', nil, style.Foreground(tcell.ColorWhite))
-			}
-
 			for _, entity := range view.Game.Entities {
 				positioner, ok := entity.(backend.Positioner)
 				if !ok {
@@ -119,6 +108,18 @@ func setupViewPort(view *View) {
 					style.Foreground(color),
 				)
 			}
+
+			for _, wall := range view.Game.GetMapWalls() {
+				x := centerX + wall.X
+				y := centerY + wall.Y
+
+				if !withinDrawBounds(x, y, width, height) {
+					continue
+				}
+
+				screen.SetContent(x, y, '█', nil, style.Foreground(tcell.ColorWhite))
+			}
+
 			return 0, 0, 0, 0
 		},
 	)
