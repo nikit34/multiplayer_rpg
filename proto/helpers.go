@@ -2,6 +2,7 @@ package proto
 
 import (
 	"log"
+	"unicode/utf8"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
@@ -58,10 +59,12 @@ func GetBackendPlayer(protoPlayer *Player) *backend.Player {
 	if err != nil {
 		return nil
 	}
+
+	icon, _ := utf8.DecodeRuneInString(protoPlayer.Icon)
 	player := &backend.Player{
 		IdentifierBase: backend.IdentifierBase{UUID: entityID},
 		Name:           protoPlayer.Name,
-		Icon:           'P',
+		Icon:           icon,
 	}
 	player.Move(GetBackendCoordinate(protoPlayer.Position))
 	return player
@@ -103,6 +106,7 @@ func GetProtoPlayer(player *backend.Player) *Player {
 		Id:       player.ID().String(),
 		Name:     player.Name,
 		Position: GetProtoCoordinate(player.Position()),
+		Icon: string(player.Icon),
 	}
 }
 

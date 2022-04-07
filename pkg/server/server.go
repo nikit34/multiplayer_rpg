@@ -4,6 +4,8 @@ import (
 	"log"
 	"sync"
 	"time"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
@@ -179,6 +181,8 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 
 	connect := req.GetConnect()
 
+	icon, _ := utf8.DecodeRuneInString(strings.ToUpper(connect.Name))
+
 	playerID, err := uuid.Parse(connect.Id)
 	if err != nil {
 
@@ -188,7 +192,7 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 
 	player := &backend.Player{
 		Name:            connect.Name,
-		Icon:            'P',
+		Icon:            icon,
 		IdentifierBase:  backend.IdentifierBase{UUID: playerID},
 		CurrentPosition: startCoordinate,
 	}
