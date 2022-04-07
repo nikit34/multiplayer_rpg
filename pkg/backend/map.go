@@ -1,9 +1,16 @@
 package backend
 
+
+func (game *Game) getMapDimensions() (int, int) {
+	return len(game.gameMap[0]), len(game.gameMap)
+}
+
 func (game *Game) getMapSymbols() map[rune][]Coordinate {
-	mapCenterX := len(game.gameMap[0]) / 2
-	mapCenterY := len(game.gameMap) / 2
+	width, height := game.getMapDimensions()
+	mapCenterX := width / 2
+	mapCenterY := height / 2
 	symbols := make(map[rune][]Coordinate, 0)
+
 	for mapY, row := range game.gameMap {
 		for mapX, col := range row {
 			if col == ' ' {
