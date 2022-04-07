@@ -24,17 +24,21 @@ type GameServer struct {
 }
 
 func (s *GameServer) broadcast(resp *proto.Response) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	removals := []uuid.UUID{}
 
+	s.mu.RLock()
 	for id, client := range s.clients {
 		if err := client.StreamServer.Send(resp); err != nil {
 			log.Printf("broadcast error %v, removing %s", err, id)
-			s.game.Mu.Lock()
-			s.removeClient(id)
-			s.game.Mu.Unlock()
+			delete(s.clients, id)
+			removals = append(removals, id)
 		}
 		log.Printf("broadcasted %+v message to %s", resp, id)
+	}
+	s.mu.RUnlock()
+
+	for _, id := range removals {
+		s.removePlayer(id)
 	}
 }
 
@@ -153,13 +157,9 @@ func NewGameServer(game *backend.Game) *GameServer {
 	return server
 }
 
-func (s *GameServer) removeClient(playerID uuid.UUID) {
+func (s *GameServer) removePlayer(playerID uuid.UUID) {
 	s.game.Mu.Lock()
 	defer s.game.Mu.Unlock()
-
-	s.mu.Lock()
-	delete(s.clients, playerID)
-	s.mu.Unlock()
 
 	s.game.RemoveEntity(playerID)
 
@@ -278,9 +278,10 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 		if err != nil {
 			log.Printf("receive error %v", err)
 			if isConnected {
-				s.game.Mu.Lock()
-				s.removeClient(playerID)
-				s.game.Mu.Unlock()
+				s.mu.Lock()
+				delete(s.clients, playerID)
+				s.mu.Unlock()
+				s.removePlayer(playerID)
 			}
 			continue
 		}

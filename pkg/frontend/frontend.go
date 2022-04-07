@@ -254,7 +254,10 @@ func setupScoreModal(view *View) {
 func setupRoundWaitModal(view *View) {
 	textView := tview.NewTextView()
 	textView.SetTextAlign(tview.AlignCenter).
-		SetScrollable(true).SetBorder(true).SetTitle("round complete")
+			SetScrollable(true).
+			SetBorder(true).
+			SetBackgroundColor(backgroundColor).
+			SetTitle("round complete")
 
 	modal := centeredModal(textView)
 	view.pages.AddPage("roundwait", modal, true, false)
