@@ -29,10 +29,12 @@ func withinDrawBounds(x, y, width, height int) bool {
 	return x < width && x > 0 && y < height && y > 0
 }
 
+const backgroundColor = tcell.Color234
+
 func setupViewPort(view *View) {
 	box := tview.NewBox().SetBorder(true).
 		SetTitle("multiplayer-rpg").
-		SetBackgroundColor(tcell.Color234)
+		SetBackgroundColor(backgroundColor)
 	cameraX := 0
 	cameraY := 0
 
@@ -41,7 +43,7 @@ func setupViewPort(view *View) {
 			view.Game.Mu.RLock()
 			defer view.Game.Mu.RUnlock()
 
-			style := tcell.StyleDefault.Background(tcell.Color234)
+			style := tcell.StyleDefault.Background(backgroundColor)
 
 			view.Game.Mu.RLock()
 
@@ -53,14 +55,16 @@ func setupViewPort(view *View) {
 
 			cameraDiffX := float64(cameraX - currentPlayerPosition.X)
 			cameraDiffY := float64(cameraY - currentPlayerPosition.Y)
-			if math.Abs(cameraDiffX) > 8 {
+			cameraDiffXMax := float64(width / 6)
+			cameraDiffYMax := float64(height / 6)
+			if math.Abs(cameraDiffX) > cameraDiffXMax {
 				if cameraDiffX <= 0 {
 					cameraX++
 				} else {
 					cameraX--
 				}
 			}
-			if math.Abs(cameraDiffY) > 8 {
+			if math.Abs(cameraDiffY) > cameraDiffYMax {
 				if cameraDiffY <= 0 {
 					cameraY++
 				} else {
@@ -168,7 +172,16 @@ func setupViewPort(view *View) {
 		return e
 	})
 
-	view.pages.AddPage("viewport", box, true, true)
+	helpText := tview.NewTextView().
+				SetTextAlign(tview.AlignCenter).
+				SetText("← → ↑ ↓ move - wasd shoot - p players - esc close - ctrl+q quit").
+				SetTextColor(tcell.ColorWhite)
+	helpText.SetBackgroundColor(backgroundColor)
+	flex := tview.NewFlex().
+			SetDirection(tview.FlexRow).
+			AddItem(box, 0, 1, true).
+			AddItem(helpText, 1, 1, false)
+	view.pages.AddPage("viewport", flex, true, true)
 	view.viewPort = box
 }
 
@@ -184,7 +197,7 @@ func centeredModal(p tview.Primitive) tview.Primitive {
 
 func setupScoreModal(view *View) {
 	textView := tview.NewTextView()
-	textView.SetBorder(true).SetTitle("Score")
+	textView.SetBorder(true).SetTitle("Score").SetBackgroundColor(backgroundColor)
 	modal := centeredModal(textView)
 
 	callback := func() {
@@ -291,9 +304,12 @@ func NewView(game *backend.Game) *View {
 		if e.Rune() == 'p' {
 			pages.ShowPage("score")
 		}
-		if e.Key() == tcell.KeyESC {
+		switch e.Key() {
+		case tcell.KeyEsc:
 			pages.HidePage("score")
 			app.SetFocus(view.viewPort)
+		case tcell.KeyCtrlQ:
+			app.Stop()
 		}
 		return e
 	})
