@@ -32,7 +32,7 @@ func withinDrawBounds(x, y, width, height int) bool {
 func setupViewPort(view *View) {
 	box := tview.NewBox().SetBorder(true).
 		SetTitle("multiplayer-rpg").
-		SetBackgroundColor(tcell.ColorBlack)
+		SetBackgroundColor(tcell.Color234)
 	cameraX := 0
 	cameraY := 0
 
@@ -41,7 +41,7 @@ func setupViewPort(view *View) {
 			view.Game.Mu.RLock()
 			defer view.Game.Mu.RUnlock()
 
-			style := tcell.StyleDefault.Background(tcell.ColorBlack)
+			style := tcell.StyleDefault.Background(tcell.Color234)
 
 			view.Game.Mu.RLock()
 
@@ -92,7 +92,7 @@ func setupViewPort(view *View) {
 				switch entity_type := entity.(type) {
 				case *backend.Player:
 					icon = entity_type.Icon
-					color = tcell.ColorGreen
+					color = tcell.ColorWhite
 				case *backend.Laser:
 					icon = 'x'
 					color = tcell.ColorRed
@@ -117,7 +117,7 @@ func setupViewPort(view *View) {
 					continue
 				}
 
-				screen.SetContent(x, y, '█', nil, style.Foreground(tcell.ColorWhite))
+				screen.SetContent(x, y, '█', nil, style.Foreground(tcell.Color24))
 			}
 
 			return 0, 0, 0, 0
