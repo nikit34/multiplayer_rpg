@@ -1,10 +1,11 @@
 package server
 
 import (
+	"context"
 	"log"
+	"strings"
 	"sync"
 	"time"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/golang/protobuf/ptypes"
@@ -16,6 +17,8 @@ import (
 
 type client struct {
 	StreamServer proto.Game_StreamServer
+	Cancel context.CancelFunc
+	ID uuid.UUID
 }
 
 type GameServer struct {
@@ -159,6 +162,11 @@ func NewGameServer(game *backend.Game) *GameServer {
 	return server
 }
 
+func (s *GameServer) removeClient(currentClient *client) {
+	delete(s.clients, currentClient.ID)
+	currentClient.Cancel()
+}
+
 func (s *GameServer) removePlayer(playerID uuid.UUID) {
 	s.game.Mu.Lock()
 	defer s.game.Mu.Unlock()
@@ -175,7 +183,7 @@ func (s *GameServer) removePlayer(playerID uuid.UUID) {
 	s.broadcast(&resp)
 }
 
-func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_StreamServer) uuid.UUID {
+func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_StreamServer) (uuid.UUID, error) {
 	s.game.Mu.Lock()
 	defer s.game.Mu.Unlock()
 
@@ -239,7 +247,7 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 	}
 	s.mu.Unlock()
 
-	return player.ID()
+	return player.ID(), nil
 }
 
 func (s *GameServer) handleMoveRequest(playerID uuid.UUID, req *proto.Request, srv proto.Game_StreamServer) {
@@ -267,13 +275,15 @@ func (s *GameServer) handleLaserRequest(playerID uuid.UUID, req *proto.Request, 
 
 func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 	log.Println("start server")
-	ctx := srv.Context()
-	var playerID uuid.UUID
 
-	isConnected := false
+	ctx, cancel := context.WithCancel(srv.Context())
+
+	var currentClient *client
+
 	for {
 		select {
 		case <-ctx.Done():
+			log.Printf("stream done with error \"%v\"", ctx.Err())
 			return ctx.Err()
 		default:
 		}
@@ -281,30 +291,42 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 		req, err := srv.Recv()
 		if err != nil {
 			log.Printf("receive error %v", err)
-			if isConnected {
+			if currentClient != nil {
 				s.mu.Lock()
-				delete(s.clients, playerID)
+				s.removeClient(currentClient)
 				s.mu.Unlock()
-				s.removePlayer(playerID)
+				s.removePlayer(currentClient.ID)
 			}
 			continue
 		}
 
-		if req.GetConnect() != nil {
-			playerID = s.handleConnectRequest(req, srv)
-			isConnected = true
+		if currentClient == nil && req.GetConnect() != nil {
+			playerID, err := s.handleConnectRequest(req, srv)
+			if err != nil {
+				log.Printf("error when connecting %s: %+v", playerID.String(), err)
+				return err
+			}
+
+			s.mu.Lock()
+			currentClient = &client{
+				StreamServer: srv,
+				Cancel: cancel,
+				ID: playerID,
+			}
+			s.clients[playerID] = currentClient
+			s.mu.Unlock()
 		}
 
-		if !isConnected {
+		if currentClient == nil {
 			continue
 		}
 		log.Printf("got message %+v", req)
 
-		switch req.GetAction().(type) {
-		case *proto.Request_Move:
-			s.handleMoveRequest(playerID, req, srv)
-		case *proto.Request_Laser:
-			s.handleLaserRequest(playerID, req, srv)
-		}
+		// switch req.GetAction().(type) {
+		// case *proto.Request_Move:
+		// 	s.handleMoveRequest(playerID, req, srv)
+		// case *proto.Request_Laser:
+		// 	s.handleLaserRequest(playerID, req, srv)
+		// }
 	}
 }
