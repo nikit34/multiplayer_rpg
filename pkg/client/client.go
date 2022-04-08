@@ -1,7 +1,8 @@
 package client
 
 import (
-	"io"
+	"context"
+	"fmt"
 	"log"
 
 	"github.com/google/uuid"
@@ -17,13 +18,15 @@ type GameClient struct {
 	Stream        proto.Game_StreamClient
 	Game          *backend.Game
 	View          *frontend.View
+	Cancel        context.CancelFunc
 }
 
-func NewGameClient(stream proto.Game_StreamClient, game *backend.Game, view *frontend.View) *GameClient {
+func NewGameClient(stream proto.Game_StreamClient, cancel context.CancelFunc, game *backend.Game, view *frontend.View) *GameClient {
 	return &GameClient{
 		Stream: stream,
 		Game:   game,
-		View:   view,
+		View:   view,		
+		Cancel: cancel,
 	}
 }
 
@@ -84,6 +87,7 @@ func (c *GameClient) handleAddEntityResponse(resp *proto.Response) {
 	add := resp.GetAddEntity()
 	entity := proto.GetBackendEntity(add.Entity)
 	if entity == nil {
+		c.Exit(fmt.Sprintf("can not get backend entity from %+v", entity))
 		return
 	}
 	c.Game.AddEntity(entity)
@@ -93,6 +97,7 @@ func (c *GameClient) handleUpdateEntityResponse(resp *proto.Response) {
 	update := resp.GetUpdateEntity()
 	entity := proto.GetBackendEntity(update.Entity)
 	if entity == nil {
+		c.Exit(fmt.Sprintf("can not get backend entity from %+v", entity))
 		return
 	}
 	c.Game.UpdateEntity(entity)
@@ -102,6 +107,7 @@ func (c *GameClient) handleRemoveEntityResponse(resp *proto.Response) {
 	remove := resp.GetRemoveEntity()
 	id, err := uuid.Parse(remove.Id)
 	if err != nil {
+		c.Exit(fmt.Sprintf("error when parsing UUID: %v", err))
 		return
 	}
 	c.Game.RemoveEntity(id)
@@ -112,11 +118,13 @@ func (c *GameClient) handlePlayerRespawnResponse(resp *proto.Response) {
 
 	killedByID, err := uuid.Parse(respawn.KilledById)
 	if err != nil {
+		c.Exit(fmt.Sprintf("error when parsing UUID: %v", err))
 		return
 	}
 
 	player := proto.GetBackendPlayer(respawn.Player)
 	if player == nil {
+		c.Exit(fmt.Sprintf("can not get backend player from %+v", respawn.Player))
 		return
 	}
 
@@ -128,6 +136,7 @@ func (c *GameClient) handleRoundOverResponse(resp *proto.Response) {
 	respawn := resp.GetRoundOver()
 	roundWinner, err := uuid.Parse(respawn.RoundWinnerId)
 	if err != nil {
+		c.Exit(fmt.Sprintf("error when parsing UUID: %v", err))
 		return
 	}
 
@@ -143,8 +152,18 @@ func (c *GameClient) handleRoundStartResponse(resp *proto.Response) {
 
 	for _, protoPlayer := range roundStart.Players {
 		player := proto.GetBackendPlayer(protoPlayer)
+		if player == nil {
+			c.Exit(fmt.Sprintf("can not get backend player from %+v", protoPlayer))
+			return
+		}
 		c.Game.AddEntity(player)
 	}
+}
+
+func (c *GameClient) Exit(message string) {
+	c.View.App.Stop()
+	log.Println(message)
+	c.Cancel()
 }
 
 func (c *GameClient) Start() {
@@ -164,12 +183,10 @@ func (c *GameClient) Start() {
 		for {
 			resp, err := c.Stream.Recv()
 			log.Printf("Recv %+v", resp)
-			if err == io.EOF {
-				log.Fatalf("EOF")
-				return
-			}
+			
 			if err != nil {
-				log.Fatalf("can not receive %v", err)
+				c.Exit(fmt.Sprintf("can not receive, error: %v", err))
+				return
 			}
 
 			c.Game.Mu.Lock()

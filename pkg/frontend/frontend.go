@@ -23,6 +23,8 @@ type View struct {
 	viewPort      tview.Primitive
 	pages         *tview.Pages
 	RoundWait     *tview.TextView
+	Done          chan error
+	Quit          chan bool
 }
 
 func withinDrawBounds(x, y, width, height int) bool {
@@ -296,7 +298,9 @@ func NewView(game *backend.Game) *View {
 		App:           app,
 		pages:         pages,
 		Paused:        false,
-		drawCallbacks: make([]func(), 0),
+		drawCallbacks: make([]func(), 0),		
+		Done:          make(chan error),
+		Quit:          make(chan bool),
 	}
 
 	setupViewPort(view)
@@ -313,6 +317,10 @@ func NewView(game *backend.Game) *View {
 			app.SetFocus(view.viewPort)
 		case tcell.KeyCtrlQ:
 			app.Stop()
+			select {
+			case view.Quit <- true:
+			default:
+			}
 		}
 		return e
 	})
@@ -320,16 +328,23 @@ func NewView(game *backend.Game) *View {
 	return view
 }
 
-func (view *View) Start() error {
+func (view *View) Start() {
+	drawTicker := time.NewTicker(17 * time.Millisecond)
 	go func() {
 		for {
 			for _, callback := range view.drawCallbacks {
 				view.App.QueueUpdate(callback)
 			}
 			view.App.Draw()
-			time.Sleep(17 * time.Millisecond)
+			<-drawTicker.C
 		}
 	}()
-
-	return view.App.Run()
+	go func() {
+		err := view.App.Run()
+		drawTicker.Stop()
+		select {
+		case view.Done <- err:
+		default:
+		}
+	}()
 }

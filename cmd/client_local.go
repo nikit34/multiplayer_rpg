@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/google/uuid"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
@@ -31,4 +33,9 @@ func main() {
 
 	game.Start()
 	view.Start()
+
+	err := <-view.Done
+	if err != nil {
+		log.Fatal(err)
+	}
 }

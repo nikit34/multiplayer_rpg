@@ -99,7 +99,7 @@ func (s *GameServer) handleRoundOverChange(change backend.RoundOverChange) {
 	defer s.game.Mu.RUnlock()
 	timestamp, err := ptypes.TimestampProto(s.game.NewRoundAt)
 	if err != nil {
-		return
+		log.Fatalf("unable to parse new round timestamp %v", s.game.NewRoundAt)
 	}
 	resp := proto.Response{
 		Action: &proto.Response_RoundOver{
@@ -215,6 +215,7 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 	s.game.AddEntity(player)
 	s.game.Mu.Unlock()
 
+	s.game.Mu.RLock()
 	entities := make([]*proto.Entity, 0)
 	for _, entity := range s.game.Entities {
 		protoEntity := proto.GetProtoEntity(entity)
@@ -222,8 +223,7 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 			entities = append(entities, protoEntity)
 		}
 	}
-
-	time.Sleep(time.Second * 1)
+	s.game.Mu.RUnlock()
 
 	resp := proto.Response{
 		Action: &proto.Response_Initialize{
@@ -234,7 +234,8 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 	}
 
 	if err := srv.Send(&resp); err != nil {
-		log.Printf("send error %v", err)
+		s.removePlayer(playerID)
+		return playerID, err
 	}
 
 	log.Printf("sent initialize message for %s", connect.Name)
@@ -248,25 +249,19 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 	}
 	s.broadcast(&resp)
 
-	s.mu.Lock()
-	s.clients[player.ID()] = &client{
-		StreamServer: srv,
-	}
-	s.mu.Unlock()
-
-	return player.ID(), nil
+	return playerID, nil
 }
 
-func (s *GameServer) handleMoveRequest(playerID uuid.UUID, req *proto.Request, srv proto.Game_StreamServer) {
+func (s *GameServer) handleMoveRequest(req *proto.Request, currentClient *client) {
 	move := req.GetMove()
 
 	s.game.ActionChannel <- backend.MoveAction{
-		ID:        playerID,
+		ID:        currentClient.ID,
 		Direction: proto.GetBackendDirection(move.Direction),
 	}
 }
 
-func (s *GameServer) handleLaserRequest(playerID uuid.UUID, req *proto.Request, srv proto.Game_StreamServer) {
+func (s *GameServer) handleLaserRequest(req *proto.Request, currentClient *client) {
 	laser := req.GetLaser()
 	id, err := uuid.Parse(laser.Id)
 	if err != nil {
@@ -274,7 +269,7 @@ func (s *GameServer) handleLaserRequest(playerID uuid.UUID, req *proto.Request, 
 	}
 
 	s.game.ActionChannel <- backend.LaserAction{
-		OwnerID:   playerID,
+		OwnerID:   currentClient.ID,
 		ID:        id,
 		Direction: proto.GetBackendDirection(laser.Direction),
 	}
@@ -304,7 +299,7 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 				s.mu.Unlock()
 				s.removePlayer(currentClient.ID)
 			}
-			continue
+			return err
 		}
 
 		log.Printf("got message %+v", req)
@@ -332,9 +327,9 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 
 		switch req.GetAction().(type) {
 		case *proto.Request_Move:
-			s.handleMoveRequest(playerID, req, srv)
+			s.handleMoveRequest(req, currentClient)
 		case *proto.Request_Laser:
-			s.handleLaserRequest(playerID, req, srv)
+			s.handleLaserRequest(req, currentClient)
 		}
 	}
 }
