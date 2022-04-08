@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"errors"
 	"log"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -32,10 +34,10 @@ func (s *GameServer) broadcast(resp *proto.Response) {
 	removals := []uuid.UUID{}
 
 	s.mu.RLock()
-	for id, client := range s.clients {
-		if err := client.StreamServer.Send(resp); err != nil {
+	for id, currentClient := range s.clients {
+		if err := currentClient.StreamServer.Send(resp); err != nil {
 			log.Printf("broadcast error %v, removing %s", err, id)
-			delete(s.clients, id)
+			s.removeClient(currentClient)
 			removals = append(removals, id)
 		}
 		log.Printf("broadcasted %+v message to %s", resp, id)
@@ -184,8 +186,7 @@ func (s *GameServer) removePlayer(playerID uuid.UUID) {
 }
 
 func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_StreamServer) (uuid.UUID, error) {
-	s.game.Mu.Lock()
-	defer s.game.Mu.Unlock()
+	time.Sleep(time.Second * 1)
 
 	connect := req.GetConnect()
 
@@ -193,7 +194,12 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 
 	playerID, err := uuid.Parse(connect.Id)
 	if err != nil {
+		return playerID, err
+	}
 
+	re := regexp.MustCompile("^[a-zA-Z0-9]+$")
+	if !re.MatchString(connect.Name) {
+		return playerID, errors.New("invalid name provided")
 	}
 
 	startCoordinate := backend.Coordinate{X: 0, Y: 0}
@@ -205,8 +211,9 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 		CurrentPosition: startCoordinate,
 	}
 
-	player.Move(startCoordinate)
+	s.game.Mu.Lock()
 	s.game.AddEntity(player)
+	s.game.Mu.Unlock()
 
 	entities := make([]*proto.Entity, 0)
 	for _, entity := range s.game.Entities {
@@ -300,6 +307,8 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 			continue
 		}
 
+		log.Printf("got message %+v", req)
+
 		if currentClient == nil && req.GetConnect() != nil {
 			playerID, err := s.handleConnectRequest(req, srv)
 			if err != nil {
@@ -320,13 +329,12 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 		if currentClient == nil {
 			continue
 		}
-		log.Printf("got message %+v", req)
 
-		// switch req.GetAction().(type) {
-		// case *proto.Request_Move:
-		// 	s.handleMoveRequest(playerID, req, srv)
-		// case *proto.Request_Laser:
-		// 	s.handleLaserRequest(playerID, req, srv)
-		// }
+		switch req.GetAction().(type) {
+		case *proto.Request_Move:
+			s.handleMoveRequest(playerID, req, srv)
+		case *proto.Request_Laser:
+			s.handleLaserRequest(playerID, req, srv)
+		}
 	}
 }
