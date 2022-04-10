@@ -75,12 +75,20 @@ func (game *Game) RemoveEntity(id uuid.UUID) {
 	delete(game.Entities, id)
 }
 
-func (game *Game) checkLastActionTime(actionKey string, throttle int) bool {
+const (
+	roundOverScore = 10
+	newRoundWaitTime = time.Second * 10
+	collisionCheckFrequency = time.Millisecond * 20
+	moveThrottle = time.Millisecond * 50
+	laserThrottle = time.Millisecond * 500
+)
+
+func (game *Game) checkLastActionTime(actionKey string, throttle time.Duration) bool {
 	game.Mu.RLock()
 	lastAction, ok := game.lastAction[actionKey]
 	game.Mu.RUnlock()
 
-	if ok && lastAction.After(time.Now().Add(-1*time.Duration(throttle)*time.Millisecond)) {
+	if ok && lastAction.After(time.Now().Add(-1 * throttle)) {
 		return false
 	}
 	return true
@@ -144,7 +152,7 @@ func (action MoveAction) Perform(game *Game) {
 	}
 
 	actionKey := fmt.Sprintf("%T:%s", action, entity.ID().String())
-	if !game.checkLastActionTime(actionKey, 50) {
+	if !game.checkLastActionTime(actionKey, moveThrottle) {
 		return
 	}
 
@@ -245,15 +253,15 @@ func (game *Game) startNewRound() {
 	game.sendChange(RoundStartChange{})
 }
 
-func (game *Game) queueNewRound(roundWinner uuid.UUID, newRoundAt time.Time) {
+func (game *Game) queueNewRound(roundWinner uuid.UUID) {
 	game.WaitForRound = true
-	game.NewRoundAt = newRoundAt
+	game.NewRoundAt = time.Now().Add(newRoundWaitTime)
 	game.RoundWinner = roundWinner
 
 	game.sendChange(RoundOverChange{})
 
 	go func() {
-		time.Sleep(time.Second * 10)
+		time.Sleep(newRoundWaitTime)
 
 		game.Mu.Lock()
 		game.startNewRound()
@@ -347,8 +355,8 @@ func (game *Game) watchCollisions() {
 					game.sendChange(change)
 					game.AddScore(laserOwnerID)
 
-					if game.Score[laserOwnerID] >= 10 {
-						game.queueNewRound(laserOwnerID, time.Now().Add(time.Second * 10))
+					if game.Score[laserOwnerID] >= roundOverScore {
+						game.queueNewRound(laserOwnerID)
 					}
 
 				case *Laser:
@@ -382,7 +390,7 @@ func (game *Game) watchCollisions() {
 		}
 
 		game.Mu.Unlock()
-		time.Sleep(time.Millisecond * 20)
+		time.Sleep(collisionCheckFrequency)
 	}
 }
 

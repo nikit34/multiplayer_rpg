@@ -11,11 +11,18 @@ import (
 	"github.com/nikit34/multiplayer_rpg_go/proto"
 
 	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 	"github.com/google/uuid"
 	"github.com/rivo/tview"
 	"google.golang.org/grpc"
 )
 
+
+const (
+	backgroundColor = tcell.Color234
+	textColor = tcell.ColorWhite
+	fieldColor = tcell.Color24
+)
 
 type connectInfo struct {
 	PlayerName string
@@ -23,7 +30,6 @@ type connectInfo struct {
 }
 
 func connectApp(info *connectInfo) *tview.Application {
-	backgroundColor := tcell.Color234
 	app := tview.NewApplication()
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexRow)
@@ -55,9 +61,9 @@ func connectApp(info *connectInfo) *tview.Application {
 		AddButton("Quit", func() {
 			app.Stop()
 		})
-	form.SetLabelColor(tcell.ColorWhite).
-		SetButtonBackgroundColor(tcell.Color24).
-		SetFieldBackgroundColor(tcell.Color24).
+	form.SetLabelColor(textColor).
+		SetButtonBackgroundColor(fieldColor).
+		SetFieldBackgroundColor(fieldColor).
 		SetBackgroundColor(backgroundColor)
 	flex.AddItem(errors, 1, 1, false)
 	flex.AddItem(form, 0, 1, false)
