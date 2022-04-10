@@ -3,18 +3,17 @@ package main
 import (
 	"context"
 	"log"
-	"math/rand"
-	"time"
+	"regexp"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/client"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
 	"github.com/nikit34/multiplayer_rpg_go/proto"
 
-	"google.golang.org/grpc"
-	"github.com/google/uuid"
 	"github.com/gdamore/tcell"
+	"github.com/google/uuid"
 	"github.com/rivo/tview"
+	"google.golang.org/grpc"
 )
 
 
@@ -35,7 +34,14 @@ func connectApp(info *connectInfo) *tview.Application {
 		SetText(" Use the tab key to change fields, and enter to submit")
 	errors.SetBackgroundColor(backgroundColor)
 	form := tview.NewForm()
-	form.AddInputField("Player name", "", 16, nil, nil).
+	re := regexp.MustCompile("^[a-zA-Z0-9]+$")
+	form.AddInputField("Player name", "", 16, func(textToCheck string, lastChar rune) bool {
+		result := re.MatchString(textToCheck)
+		if !result {
+			errors.SetText("Only alphanumeric characters are allowed")
+		}
+		return result
+	}, nil).
 		AddInputField("Server address", ":8888", 32, nil, nil).
 		AddButton("Connect", func() {
 			info.PlayerName = form.GetFormItem(0).(*tview.InputField).GetText()
