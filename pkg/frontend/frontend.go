@@ -14,6 +14,15 @@ import (
 	"github.com/rivo/tview"
 )
 
+const (
+	backgroundColor = tcell.Color234
+	textColor       = tcell.ColorWhite
+	playerColor     = tcell.ColorWhite
+	wallColor       = tcell.Color24
+	laserColor      = tcell.ColorRed
+	drawFrequency   = 17 * time.Millisecond
+)
+
 type View struct {
 	Game          *backend.Game
 	App           *tview.Application
@@ -98,10 +107,10 @@ func setupViewPort(view *View) {
 				switch entity_type := entity.(type) {
 				case *backend.Player:
 					icon = entity_type.Icon
-					color = tcell.ColorWhite
+					color = playerColor
 				case *backend.Laser:
 					icon = 'x'
-					color = tcell.ColorRed
+					color = laserColor
 				default:
 					continue
 				}
@@ -177,7 +186,7 @@ func setupViewPort(view *View) {
 	helpText := tview.NewTextView().
 				SetTextAlign(tview.AlignCenter).
 				SetText("← → ↑ ↓ move - wasd shoot - p players - esc close - ctrl+q quit").
-				SetTextColor(tcell.ColorWhite)
+				SetTextColor(textColor)
 	helpText.SetBackgroundColor(backgroundColor)
 	flex := tview.NewFlex().
 			SetDirection(tview.FlexRow).
@@ -329,7 +338,7 @@ func NewView(game *backend.Game) *View {
 }
 
 func (view *View) Start() {
-	drawTicker := time.NewTicker(17 * time.Millisecond)
+	drawTicker := time.NewTicker(drawFrequency)
 	stop := make(chan bool)
 
 	go func() {
