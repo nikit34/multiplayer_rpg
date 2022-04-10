@@ -298,7 +298,7 @@ func NewView(game *backend.Game) *View {
 		App:           app,
 		pages:         pages,
 		Paused:        false,
-		drawCallbacks: make([]func(), 0),		
+		drawCallbacks: make([]func(), 0),
 		Done:          make(chan error),
 		Quit:          make(chan bool),
 	}
@@ -330,6 +330,8 @@ func NewView(game *backend.Game) *View {
 
 func (view *View) Start() {
 	drawTicker := time.NewTicker(17 * time.Millisecond)
+	stop := make(chan bool)
+
 	go func() {
 		for {
 			for _, callback := range view.drawCallbacks {
@@ -337,11 +339,20 @@ func (view *View) Start() {
 			}
 			view.App.Draw()
 			<-drawTicker.C
+
+			select{
+			case <-stop:
+				return
+			default:
+			}
 		}
 	}()
+
 	go func() {
 		err := view.App.Run()
+		stop <- true
 		drawTicker.Stop()
+
 		select {
 		case view.Done <- err:
 		default:
