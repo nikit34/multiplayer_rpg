@@ -36,11 +36,11 @@ func (s *GameServer) broadcast(resp *proto.Response) {
 	s.mu.RLock()
 	for id, currentClient := range s.clients {
 		if err := currentClient.StreamServer.Send(resp); err != nil {
-			log.Printf("broadcast error %v, removing %s", err, id)
-			s.removeClient(currentClient)
-			removals = append(removals, id)
+			log.Printf("%s - broadcast error %v", id, err)
+			currentClient.Cancel()
+			continue
 		}
-		log.Printf("broadcasted %+v message to %s", resp, id)
+		log.Printf("%s - broadcasted %+v", resp, id)
 	}
 	s.mu.RUnlock()
 
@@ -238,7 +238,7 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 		return playerID, err
 	}
 
-	log.Printf("sent initialize message for %s", connect.Name)
+	log.Printf("%s - sent initialize message", connect.Id)
 
 	resp = proto.Response{
 		Action: &proto.Response_AddEntity{
@@ -265,7 +265,7 @@ func (s *GameServer) handleLaserRequest(req *proto.Request, currentClient *clien
 	laser := req.GetLaser()
 	id, err := uuid.Parse(laser.Id)
 	if err != nil {
-		return
+		log.Printf(`%s - invalid laser ID "%s"`, currentClient.ID, laser.Id)
 	}
 
 	s.game.ActionChannel <- backend.LaserAction{
@@ -282,54 +282,77 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 
 	var currentClient *client
 
-	for {
-		select {
-		case <-ctx.Done():
-			log.Printf("stream done with error \"%v\"", ctx.Err())
-			return ctx.Err()
-		default:
-		}
+	lastMessage := time.Now()
+	timeoutTicker := time.NewTicker(1 * time.Minute)
 
-		req, err := srv.Recv()
-		if err != nil {
-			log.Printf("receive error %v", err)
-			if currentClient != nil {
-				s.mu.Lock()
-				s.removeClient(currentClient)
-				s.mu.Unlock()
-				s.removePlayer(currentClient.ID)
+	go func() {
+		for {
+			if currentClient != nil && time.Now().Sub(lastMessage).Minutes() > 15 {
+				log.Printf("%s - user time out", currentClient.ID)
+				cancel()
+				return
 			}
-			return err
+			<-timeoutTicker.C
 		}
+	} ()
 
-		log.Printf("got message %+v", req)
-
-		if currentClient == nil && req.GetConnect() != nil {
-			playerID, err := s.handleConnectRequest(req, srv)
+	go func() {
+		for {
+			req, err := srv.Recv()
 			if err != nil {
-				log.Printf("error when connecting %s: %+v", playerID.String(), err)
-				return err
+				log.Printf("receive error %v", err)
+				cancel()
+				return
+			}
+			log.Printf("got message %+v", req)
+
+
+			if currentClient != nil {
+				lastMessage = time.Now()
 			}
 
-			s.mu.Lock()
-			currentClient = &client{
-				StreamServer: srv,
-				Cancel: cancel,
-				ID: playerID,
+			if currentClient == nil && req.GetConnect() != nil {
+				playerID, err := s.handleConnectRequest(req, srv)
+				if err != nil {
+					log.Printf("%s - error when connecting %+v", playerID, err)
+					cancel()
+					return
+				}
+
+				s.mu.Lock()
+				currentClient = &client{
+					StreamServer: srv,
+					Cancel:       cancel,
+					ID:           playerID,
+				}
+				s.clients[playerID] = currentClient
+				s.mu.Unlock()
 			}
-			s.clients[playerID] = currentClient
-			s.mu.Unlock()
-		}
 
-		if currentClient == nil {
-			continue
-		}
+			if currentClient == nil {
+				continue
+			}
 
-		switch req.GetAction().(type) {
-		case *proto.Request_Move:
-			s.handleMoveRequest(req, currentClient)
-		case *proto.Request_Laser:
-			s.handleLaserRequest(req, currentClient)
+
+			switch req.GetAction().(type) {
+			case *proto.Request_Move:
+				s.handleMoveRequest(req, currentClient)
+			case *proto.Request_Laser:
+				s.handleLaserRequest(req, currentClient)
+			}
 		}
+	}()
+
+	<-ctx.Done()
+	timeoutTicker.Stop()
+	log.Printf(`stream done with error "%v"`, ctx.Err())
+
+	if currentClient != nil {
+		log.Printf("%s - removing client", currentClient.ID)
+		s.mu.Lock()
+		s.removeClient(currentClient)
+		s.mu.Unlock()
+		s.removePlayer(currentClient.ID)
 	}
+	return ctx.Err()
 }
