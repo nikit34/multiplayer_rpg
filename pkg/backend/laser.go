@@ -39,6 +39,7 @@ type LaserAction struct {
 	Direction Direction
 	ID        uuid.UUID
 	OwnerID   uuid.UUID
+	Created time.Time
 }
 
 func (action LaserAction) Perform(game *Game) {
@@ -48,13 +49,13 @@ func (action LaserAction) Perform(game *Game) {
 	}
 
 	actionKey := fmt.Sprintf("%T:%s", action, entity.ID().String())
-	if !game.checkLastActionTime(actionKey, laserThrottle) {
+	if !game.checkLastActionTime(actionKey, action.Created, laserThrottle) {
 		return
 	}
 
 	laser := Laser{
 		InitialPosition: entity.(Positioner).Position(),
-		StartTime:       time.Now(),
+		StartTime:       action.Created,
 		Direction:       action.Direction,
 		OwnerID:         action.OwnerID,
 		IdentifierBase:  IdentifierBase{action.ID},
@@ -76,5 +77,5 @@ func (action LaserAction) Perform(game *Game) {
 	change := AddEntityChange{Entity: &laser}
 
 	game.sendChange(change)
-	game.updateLastActionTime(actionKey)
+	game.updateLastActionTime(actionKey, action.Created)
 }

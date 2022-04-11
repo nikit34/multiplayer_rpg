@@ -259,6 +259,7 @@ func (s *GameServer) handleMoveRequest(req *proto.Request, currentClient *client
 	s.game.ActionChannel <- backend.MoveAction{
 		ID:        currentClient.ID,
 		Direction: proto.GetBackendDirection(move.Direction),
+		Created: time.Now(),
 	}
 }
 
@@ -273,6 +274,7 @@ func (s *GameServer) handleLaserRequest(req *proto.Request, currentClient *clien
 		OwnerID:   currentClient.ID,
 		ID:        id,
 		Direction: proto.GetBackendDirection(laser.Direction),
+		Created: time.Now(),
 	}
 }
 
