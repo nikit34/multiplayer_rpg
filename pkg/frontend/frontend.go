@@ -33,7 +33,6 @@ type View struct {
 	pages         *tview.Pages
 	RoundWait     *tview.TextView
 	Done          chan error
-	Quit          chan bool
 }
 
 func withinDrawBounds(x, y, width, height int) bool {
@@ -309,7 +308,6 @@ func NewView(game *backend.Game) *View {
 		Paused:        false,
 		drawCallbacks: make([]func(), 0),
 		Done:          make(chan error),
-		Quit:          make(chan bool),
 	}
 
 	setupViewPort(view)
@@ -324,10 +322,14 @@ func NewView(game *backend.Game) *View {
 		case tcell.KeyEsc:
 			pages.HidePage("score")
 			app.SetFocus(view.viewPort)
+
 		case tcell.KeyCtrlQ:
+			fallthrough
+			
+		case tcell.KeyCtrlC:
 			app.Stop()
 			select {
-			case view.Quit <- true:
+			case view.Done <- nil:
 			default:
 			}
 		}

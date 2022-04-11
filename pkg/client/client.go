@@ -36,7 +36,7 @@ func NewGameClient(stream proto.Game_StreamClient, cancel context.CancelFunc, ga
 	}
 }
 
-func (c *GameClient) Connect(playerID uuid.UUID, playerName string) {
+func (c *GameClient) Connect(playerID uuid.UUID, playerName string, password string) {
 	c.View.Paused = true
 	c.CurrentPlayer = playerID
 
@@ -45,6 +45,7 @@ func (c *GameClient) Connect(playerID uuid.UUID, playerName string) {
 			Connect: &proto.Connect{
 				Id:   playerID.String(),
 				Name: playerName,
+				Password: password,
 			},
 		},
 	}

@@ -29,6 +29,7 @@ type GameServer struct {
 	game    *backend.Game
 	clients map[uuid.UUID]*client
 	mu      sync.RWMutex
+	password string
 }
 
 func (s *GameServer) broadcast(resp *proto.Response) {
@@ -156,10 +157,11 @@ func (s *GameServer) WatchChanges() {
 	}()
 }
 
-func NewGameServer(game *backend.Game) *GameServer {
+func NewGameServer(game *backend.Game, password string) *GameServer {
 	server := &GameServer{
 		game:    game,
 		clients: make(map[uuid.UUID]*client),
+		password: password,
 	}
 	server.WatchChanges()
 	return server
@@ -193,6 +195,10 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 	playerID, err := uuid.Parse(connect.Id)
 	if err != nil {
 		return playerID, err
+	}
+
+	if connect.Password != s.password {
+		return playerID, errors.New("invalid password provided")
 	}
 
 	re := regexp.MustCompile("^[a-zA-Z0-9]+$")
@@ -295,12 +301,17 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 	var currentClient *client
 
 	lastMessage := time.Now()
+	streamStartTime := time.Now()
 	timeoutTicker := time.NewTicker(1 * time.Minute)
 
 	go func() {
 		for {
 			if currentClient != nil && time.Now().Sub(lastMessage).Minutes() > clientTimeout {
 				log.Printf("%s - user time out", currentClient.ID)
+				cancel()
+				return
+			} else if currentClient == nil && time.Now().Sub(streamStartTime).Seconds() > 30 {
+				log.Printf("%s - user did not connect last enough", currentClient.ID)
 				cancel()
 				return
 			}
