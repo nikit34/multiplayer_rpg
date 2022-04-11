@@ -277,10 +277,15 @@ func (s *GameServer) handleLaserRequest(req *proto.Request, currentClient *clien
 }
 
 const (
-	ClientTimeout = 15
+	clientTimeout = 15
+	maxClients = 8
 )
 
 func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
+	if len(s.clients) >= maxClients {
+		return errors.New("Server is full")
+	}
+
 	log.Println("start server")
 
 	ctx, cancel := context.WithCancel(srv.Context())
@@ -292,7 +297,7 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 
 	go func() {
 		for {
-			if currentClient != nil && time.Now().Sub(lastMessage).Minutes() > ClientTimeout {
+			if currentClient != nil && time.Now().Sub(lastMessage).Minutes() > clientTimeout {
 				log.Printf("%s - user time out", currentClient.ID)
 				cancel()
 				return
