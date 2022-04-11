@@ -10,8 +10,7 @@ import (
 	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
 	"github.com/nikit34/multiplayer_rpg_go/proto"
 
-	"github.com/gdamore/tcell"
-	"github.com/gdamore/tcell/v2"
+	tcell "github.com/gdamore/tcell/v2"
 	"github.com/google/uuid"
 	"github.com/rivo/tview"
 	"google.golang.org/grpc"
@@ -71,8 +70,6 @@ func connectApp(info *connectInfo) *tview.Application {
 	return app
 }
 
-var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
 func main() {
 	game := backend.NewGame()
 	game.IsAuthoritative = false
@@ -94,8 +91,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("open stream error %v", err)
 	}
-
-	ctx := stream.Context()
 
 	ctx, cancel := context.WithCancel(stream.Context())
 	client := client.NewGameClient(stream, cancel, game, view)

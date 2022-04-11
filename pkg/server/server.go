@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math/rand"
 	"regexp"
 	"strings"
 	"sync"
@@ -186,10 +187,7 @@ func (s *GameServer) removePlayer(playerID uuid.UUID) {
 }
 
 func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_StreamServer) (uuid.UUID, error) {
-	time.Sleep(time.Second * 1)
-
 	connect := req.GetConnect()
-
 	icon, _ := utf8.DecodeRuneInString(strings.ToUpper(connect.Name))
 
 	playerID, err := uuid.Parse(connect.Id)
@@ -202,7 +200,10 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 		return playerID, errors.New("invalid name provided")
 	}
 
-	startCoordinate := backend.Coordinate{X: 0, Y: 0}
+	spawnPoints := s.game.GetMapSpawnPoints()
+	rand.Seed(time.Now().Unix())
+	i := rand.Int() % len(spawnPoints)
+	startCoordinate := spawnPoints[i]
 
 	player := &backend.Player{
 		Name:            connect.Name,

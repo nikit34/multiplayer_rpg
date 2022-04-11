@@ -40,8 +40,6 @@ func withinDrawBounds(x, y, width, height int) bool {
 	return x < width && x > 0 && y < height && y > 0
 }
 
-const backgroundColor = tcell.Color234
-
 func setupViewPort(view *View) {
 	box := tview.NewBox().SetBorder(true).
 		SetTitle("multiplayer-rpg").

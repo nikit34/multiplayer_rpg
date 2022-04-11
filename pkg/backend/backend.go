@@ -340,7 +340,7 @@ func (game *Game) watchCollisions() {
 
 					spawnPoints := game.GetMapSpawnPoints()
 					spawnPoint := spawnPoints[0]
-					for _, sp := range game.GetMapSpawnPoints() {
+					for _, sp := range spawnPoints {
 						if distance(player.Position(), sp) > distance(player.Position(), spawnPoint) {
 							spawnPoint = sp
 						}
