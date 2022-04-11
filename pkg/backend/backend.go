@@ -81,6 +81,7 @@ const (
 	collisionCheckFrequency = time.Millisecond * 20
 	moveThrottle = time.Millisecond * 100
 	laserThrottle = time.Millisecond * 500
+	laserSpeed = 50
 )
 
 func (game *Game) checkLastActionTime(actionKey string, created time.Time, throttle time.Duration) bool {
