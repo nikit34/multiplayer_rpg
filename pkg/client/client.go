@@ -13,20 +13,26 @@ import (
 )
 
 
+const (
+	positionHistoryLimit = 5
+)
+
 type GameClient struct {
 	CurrentPlayer uuid.UUID
 	Stream        proto.Game_StreamClient
 	Game          *backend.Game
 	View          *frontend.View
 	Cancel        context.CancelFunc
+	positionHistory []backend.Coordinate
 }
 
 func NewGameClient(stream proto.Game_StreamClient, cancel context.CancelFunc, game *backend.Game, view *frontend.View) *GameClient {
 	return &GameClient{
 		Stream: stream,
 		Game:   game,
-		View:   view,		
+		View:   view,
 		Cancel: cancel,
+		positionHistory: make([]backend.Coordinate, positionHistoryLimit),
 	}
 }
 
@@ -54,6 +60,7 @@ func (c *GameClient) handleMoveChange(change backend.MoveChange) {
 		},
 	}
 	c.Stream.Send(&req)
+	c.positionHistory = append([]backend.Coordinate{change.Position}, c.positionHistory[:positionHistoryLimit]...)
 }
 
 func (c *GameClient) handleInitializeResponse(resp *proto.Response) {
@@ -90,6 +97,12 @@ func (c *GameClient) handleAddEntityResponse(resp *proto.Response) {
 		c.Exit(fmt.Sprintf("can not get backend entity from %+v", entity))
 		return
 	}
+
+	laser, ok := entity.(*backend.Laser)
+	if ok && laser.OwnerID == c.CurrentPlayer {
+		return
+	}
+
 	c.Game.AddEntity(entity)
 }
 
@@ -99,6 +112,15 @@ func (c *GameClient) handleUpdateEntityResponse(resp *proto.Response) {
 	if entity == nil {
 		c.Exit(fmt.Sprintf("can not get backend entity from %+v", entity))
 		return
+	}
+
+	player, ok := entity.(*backend.Player)
+	if ok && player.ID() == c.CurrentPlayer {
+		for _, position := range c.positionHistory {
+			if player.Position() == position {
+				return
+			}
+		}
 	}
 	c.Game.UpdateEntity(entity)
 }
@@ -183,7 +205,7 @@ func (c *GameClient) Start() {
 		for {
 			resp, err := c.Stream.Recv()
 			log.Printf("Recv %+v", resp)
-			
+
 			if err != nil {
 				c.Exit(fmt.Sprintf("can not receive, error: %v", err))
 				return

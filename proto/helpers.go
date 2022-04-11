@@ -75,6 +75,10 @@ func GetBackendLaser(protoLaser *Laser) *backend.Laser {
 	if err != nil {
 		return nil
 	}
+	ownerID, err := uuid.Parse(protoLaser.OwnerId)
+	if err != nil {
+		return nil
+	}
 	timestamp, err := ptypes.Timestamp(protoLaser.StartTime)
 	if err != nil {
 		return nil
@@ -84,6 +88,7 @@ func GetBackendLaser(protoLaser *Laser) *backend.Laser {
 		InitialPosition: GetBackendCoordinate(protoLaser.InitialPosition),
 		Direction:       GetBackendDirection(protoLaser.Direction),
 		StartTime:       timestamp,
+		OwnerID:         ownerID,
 	}
 	return laser
 }
@@ -120,6 +125,7 @@ func GetProtoLaser(laser *backend.Laser) *Laser {
 		StartTime:       timestamp,
 		InitialPosition: GetProtoCoordinate(laser.InitialPosition),
 		Direction:       GetProtoDirection(laser.Direction),
+		OwnerId:         laser.OwnerID.String(),
 	}
 }
 

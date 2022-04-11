@@ -79,7 +79,7 @@ const (
 	roundOverScore = 10
 	newRoundWaitTime = time.Second * 10
 	collisionCheckFrequency = time.Millisecond * 20
-	moveThrottle = time.Millisecond * 50
+	moveThrottle = time.Millisecond * 100
 	laserThrottle = time.Millisecond * 500
 )
 
