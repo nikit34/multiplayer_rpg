@@ -13,6 +13,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
 	proto "github.com/nikit34/multiplayer_rpg_go/proto"
@@ -400,50 +401,41 @@ const (
 )
 
 func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
-	if len(s.clients) >= maxClients {
-		return errors.New("Server is full")
+	ctx := srv.Context()
+	headers, ok := metadata.FromIncomingContext(ctx)
+
+	tokenRaw := headers["authorization"]
+	if len(tokenRaw) == 0 {
+		return errors.New("no token provided")
 	}
 
-	log.Println("start server")
+	token, err := uuid.Parse(tokenRaw[0])
+	if err != nil {
+		return errors.New("cannot parse token")
+	}
 
-	ctx := srv.Context()
-	done := make(chan error)
+	s.mu.Lock()
+	currentClient, ok := s.clients[token]
+	if !ok {
+		return errors.New("token not recognized")
+	}
+	if currentClient.streamServer != nil {
+		return errors.New("stream already active")
+	}
+	currentClient.streamServer = srv
+	s.mu.Unlock()
 
-	var currentClient *client
-
-	timeoutTicker := time.NewTicker(1 * time.Minute)
+	log.Println("start new server")
 
 	go func() {
 		for {
 			req, err := srv.Recv()
 			if err != nil {
 				log.Printf("receive error %v", err)
-				done <- errors.New("failed to receive request")
+				currentClient.done <- errors.New("failed to receive request")
 				return
 			}
 			log.Printf("got message %+v", req)
-
-			if currentClient == nil && req.GetConnect() != nil {
-				playerID, err := s.handleConnectRequest(req, srv)
-				if err != nil {
-					done <- err
-					return
-				}
-
-				s.mu.Lock()
-				currentClient = &client{
-					streamServer: srv,
-					id:           playerID,
-					done:         make(chan error),
-				}
-				s.clients[playerID] = currentClient
-				s.mu.Unlock()
-			}
-
-			if currentClient == nil {
-				continue
-			}
-
 
 			switch req.GetAction().(type) {
 			case *proto.Request_Move:
