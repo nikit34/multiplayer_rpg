@@ -37,7 +37,6 @@ func NewGameClient(stream proto.Game_StreamClient, cancel context.CancelFunc, ga
 }
 
 func (c *GameClient) Connect(playerID uuid.UUID, playerName string, password string) {
-	c.View.Paused = true
 	c.CurrentPlayer = playerID
 
 	req := proto.Request{
@@ -74,7 +73,6 @@ func (c *GameClient) handleInitializeResponse(resp *proto.Response) {
 		c.Game.AddEntity(backendEntity)
 	}
 	c.View.CurrentPlayer = c.CurrentPlayer
-	c.View.Paused = false
 }
 
 func (c *GameClient) handleAddEntityChange(change backend.AddEntityChange) {

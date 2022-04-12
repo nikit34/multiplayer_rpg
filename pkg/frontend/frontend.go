@@ -27,7 +27,6 @@ type View struct {
 	Game          *backend.Game
 	App           *tview.Application
 	CurrentPlayer uuid.UUID
-	Paused        bool
 	drawCallbacks []func()
 	viewPort      tview.Primitive
 	pages         *tview.Pages
@@ -137,10 +136,6 @@ func setupViewPort(view *View) {
 	)
 
 	box.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
-		if view.Paused {
-			return e
-		}
-
 		direction := backend.DirectionStop
 		switch e.Key() {
 		case tcell.KeyUp:
@@ -305,7 +300,6 @@ func NewView(game *backend.Game) *View {
 		Game:          game,
 		App:           app,
 		pages:         pages,
-		Paused:        false,
 		drawCallbacks: make([]func(), 0),
 		Done:          make(chan error),
 	}
@@ -325,7 +319,7 @@ func NewView(game *backend.Game) *View {
 
 		case tcell.KeyCtrlQ:
 			fallthrough
-			
+
 		case tcell.KeyCtrlC:
 			app.Stop()
 			select {
