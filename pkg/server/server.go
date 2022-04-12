@@ -19,6 +19,7 @@ import (
 
 type client struct {
 	streamServer proto.Game_StreamServer
+	lastMessage time.Time
 	done chan error
 	id uuid.UUID
 }
@@ -134,7 +135,7 @@ func (s *GameServer) handleRoundStartChange(change backend.RoundStartChange) {
 	s.broadcast(&resp)
 }
 
-func (s *GameServer) WatchChanges() {
+func (s *GameServer) watchChanges() {
 	go func() {
 		for {
 			change := <-s.game.ChangeChannel
@@ -156,13 +157,30 @@ func (s *GameServer) WatchChanges() {
 	}()
 }
 
+func (s *GameServer) watchTimeout() {
+	timeoutTicker := time.NewTicker(1 * time.Minute)
+
+	go func () {
+		for {
+			for _, client := range s.clients {
+				if time.Since(client.lastMessage).Minutes() > clientTimeout {
+					client.done <- errors.New("you have been timed out")
+					return
+				}
+			}
+			<- timeoutTicker.C
+		}
+	} ()
+}
+
 func NewGameServer(game *backend.Game, password string) *GameServer {
 	server := &GameServer{
 		game:    game,
 		clients: make(map[uuid.UUID]*client),
 		password: password,
 	}
-	server.WatchChanges()
+	server.watchChanges()
+	server.watchTimeout()
 	return server
 }
 
@@ -315,22 +333,7 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 
 	var currentClient *client
 
-	lastMessage := time.Now()
-	streamStartTime := time.Now()
 	timeoutTicker := time.NewTicker(1 * time.Minute)
-
-	go func() {
-		for {
-			if currentClient != nil && time.Now().Sub(lastMessage).Minutes() > clientTimeout {
-				done <- errors.New("you have been timed out")
-				return
-			} else if currentClient == nil && time.Now().Sub(streamStartTime).Seconds() > 30 {
-				done <- errors.New("failed to connect within minimum timeframe")
-				return
-			}
-			<-timeoutTicker.C
-		}
-	} ()
 
 	go func() {
 		for {
@@ -341,11 +344,6 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 				return
 			}
 			log.Printf("got message %+v", req)
-
-
-			if currentClient != nil {
-				lastMessage = time.Now()
-			}
 
 			if currentClient == nil && req.GetConnect() != nil {
 				playerID, err := s.handleConnectRequest(req, srv)
@@ -382,7 +380,7 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 	select {
 	case <-ctx.Done():
 		doneError = ctx.Err()
-		
+
 	case doneError = <-done:
 	}
 
