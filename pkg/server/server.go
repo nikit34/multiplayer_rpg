@@ -275,6 +275,7 @@ func (s *GameServer) Connect(ctx context.Context, req *proto.ConnectRequest) (*p
 		id: token,
 		playerID: playerID,
 		done: make(chan error),
+		lastMessage: time.Now(),
 	}
 	s.mu.Unlock()
 
@@ -322,30 +323,39 @@ const (
 	maxClients = 8
 )
 
-func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
-	ctx := srv.Context()
-	headers, ok := metadata.FromIncomingContext(ctx)
+func (s *GameServer) getClientFromContext(ctx context.Context) (*client, error) {
+	headers, _ := metadata.FromIncomingContext(ctx)
 
 	tokenRaw := headers["authorization"]
 	if len(tokenRaw) == 0 {
-		return errors.New("no token provided")
+		return nil, errors.New("no token provided")
 	}
 
 	token, err := uuid.Parse(tokenRaw[0])
 	if err != nil {
-		return errors.New("cannot parse token")
+		return nil, errors.New("cannot parse token")
 	}
 
-	s.mu.Lock()
+	s.mu.RLock()
 	currentClient, ok := s.clients[token]
+	s.mu.RUnlock()
+
 	if !ok {
-		return errors.New("token not recognized")
+		return nil, errors.New("token not recognized")
+	}
+	return currentClient, nil
+}
+
+func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
+	ctx := srv.Context()
+	currentClient, err := s.getClientFromContext(ctx)
+	if err != nil {
+		return err
 	}
 	if currentClient.streamServer != nil {
 		return errors.New("stream already active")
 	}
 	currentClient.streamServer = srv
-	s.mu.Unlock()
 
 	log.Println("start new server")
 
@@ -358,6 +368,7 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 				return
 			}
 			log.Printf("got message %+v", req)
+			currentClient.lastMessage = time.Now()
 
 			switch req.GetAction().(type) {
 			case *proto.Request_Move:
