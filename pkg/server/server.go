@@ -36,9 +36,7 @@ type GameServer struct {
 }
 
 func (s *GameServer) broadcast(resp *proto.Response) {
-	removals := []uuid.UUID{}
-
-	s.mu.RLock()
+	s.mu.Lock()
 	for id, currentClient := range s.clients {
 		if err := currentClient.streamServer.Send(resp); err != nil {
 			log.Printf("%s - broadcast error %v", id, err)
@@ -47,11 +45,7 @@ func (s *GameServer) broadcast(resp *proto.Response) {
 		}
 		log.Printf("%s - broadcasted %+v", resp, id)
 	}
-	s.mu.RUnlock()
-
-	for _, id := range removals {
-		s.removePlayer(id)
-	}
+	s.mu.Unlock()
 }
 
 func (s *GameServer) handleMoveChange(change backend.MoveChange) {
@@ -102,6 +96,7 @@ func (s *GameServer) handlePlayerRespawnChange(change backend.PlayerRespawnChang
 func (s *GameServer) handleRoundOverChange(change backend.RoundOverChange) {
 	s.game.Mu.RLock()
 	defer s.game.Mu.RUnlock()
+
 	timestamp, err := ptypes.TimestampProto(s.game.NewRoundAt)
 	if err != nil {
 		log.Fatalf("unable to parse new round timestamp %v", s.game.NewRoundAt)
@@ -128,6 +123,7 @@ func (s *GameServer) handleRoundStartChange(change backend.RoundStartChange) {
 		players = append(players, proto.GetProtoPlayer(player))
 	}
 	s.game.Mu.RUnlock()
+
 	resp := proto.Response{
 		Action: &proto.Response_RoundStart{
 			RoundStart: &proto.RoundStart{
@@ -206,83 +202,6 @@ func (s *GameServer) removePlayer(playerID uuid.UUID) {
 		},
 	}
 	s.broadcast(&resp)
-}
-
-func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_StreamServer) (uuid.UUID, error) {
-	connect := req.GetConnect()
-	icon, _ := utf8.DecodeRuneInString(strings.ToUpper(connect.Name))
-
-	playerID, err := uuid.Parse(connect.Id)
-	if err != nil {
-		return playerID, err
-	}
-
-	if connect.Password != s.password {
-		return playerID, errors.New("invalid password provided")
-	}
-
-	s.game.Mu.RLock()
-	if s.game.GetEntity(playerID) != nil {
-		return playerID, errors.New("duplicate player ID provided")
-	}
-	s.game.Mu.RUnlock()
-
-	re := regexp.MustCompile("^[a-zA-Z0-9]+$")
-	if !re.MatchString(connect.Name) {
-		return playerID, errors.New("invalid name provided")
-	}
-
-	spawnPoints := s.game.GetMapSpawnPoints()
-	rand.Seed(time.Now().Unix())
-	i := rand.Int() % len(spawnPoints)
-	startCoordinate := spawnPoints[i]
-
-	player := &backend.Player{
-		Name:            connect.Name,
-		Icon:            icon,
-		IdentifierBase:  backend.IdentifierBase{UUID: playerID},
-		CurrentPosition: startCoordinate,
-	}
-
-	s.game.Mu.Lock()
-	s.game.AddEntity(player)
-	s.game.Mu.Unlock()
-
-	s.game.Mu.RLock()
-	entities := make([]*proto.Entity, 0)
-	for _, entity := range s.game.Entities {
-		protoEntity := proto.GetProtoEntity(entity)
-		if protoEntity != nil {
-			entities = append(entities, protoEntity)
-		}
-	}
-	s.game.Mu.RUnlock()
-
-	resp := proto.Response{
-		Action: &proto.Response_Initialize{
-			Initialize: &proto.Initialize{
-				Entities: entities,
-			},
-		},
-	}
-
-	if err := srv.Send(&resp); err != nil {
-		s.removePlayer(playerID)
-		return playerID, err
-	}
-
-	log.Printf("%s - sent initialize message", connect.Id)
-
-	resp = proto.Response{
-		Action: &proto.Response_AddEntity{
-			AddEntity: &proto.AddEntity{
-				Entity: proto.GetProtoEntity(player),
-			},
-		},
-	}
-	s.broadcast(&resp)
-
-	return playerID, nil
 }
 
 func (s *GameServer) Connect(ctx context.Context, req *proto.ConnectRequest) (*proto.ConnectResponse, error) {
