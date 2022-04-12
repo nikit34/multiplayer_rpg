@@ -186,9 +186,9 @@ func NewGameServer(game *backend.Game, password string) *GameServer {
 	return server
 }
 
-func (s *GameServer) removeClient(currentClient *client) {
+func (s *GameServer) removeClient(id uuid.UUID) {
 	s.mu.Lock()
-	delete(s.clients, currentClient.id)
+	delete(s.clients, id)
 	s.mu.Unlock()
 }
 
@@ -459,17 +459,14 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 	case <-ctx.Done():
 		doneError = ctx.Err()
 
-	case doneError = <-done:
+	case doneError = <-currentClient.done:
 	}
 
-	timeoutTicker.Stop()
 	log.Printf(`stream done with error "%v"`, doneError)
+	log.Printf("%s - removing client", currentClient.id)
 
-	if currentClient != nil {
-		log.Printf("%s - removing client", currentClient.id)
+	s.removeClient(currentClient.id)
+	s.removePlayer(currentClient.playerID)
 
-		s.removeClient(currentClient)
-		s.removePlayer(currentClient.playerID)
-	}
 	return doneError
 }
