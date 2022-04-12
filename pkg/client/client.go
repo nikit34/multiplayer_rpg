@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/google/uuid"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
@@ -22,33 +23,49 @@ type GameClient struct {
 	Stream        proto.Game_StreamClient
 	Game          *backend.Game
 	View          *frontend.View
-	Cancel        context.CancelFunc
 	positionHistory []backend.Coordinate
 }
 
 func NewGameClient(stream proto.Game_StreamClient, cancel context.CancelFunc, game *backend.Game, view *frontend.View) *GameClient {
 	return &GameClient{
-		Stream: stream,
 		Game:   game,
 		View:   view,
-		Cancel: cancel,
 		positionHistory: make([]backend.Coordinate, positionHistoryLimit),
 	}
 }
 
-func (c *GameClient) Connect(playerID uuid.UUID, playerName string, password string) {
-	c.CurrentPlayer = playerID
-
-	req := proto.Request{
-		Action: &proto.Request_Connect{
-			Connect: &proto.Connect{
-				Id:   playerID.String(),
-				Name: playerName,
-				Password: password,
-			},
-		},
+func (c *GameClient) Connect(grpcClient proto.GameClient, playerID uuid.UUID, playerName string, password string) error {
+	req := proto.ConnectRequest{
+		Id:   playerID.String(),
+		Name: playerName,
+		Password: password,
 	}
-	c.Stream.Send(&req)
+
+	resp, err := grpcClient.Connect(context.Background(), &req)
+	if err != nil {
+		return err
+	}
+
+	for _, entity := range resp.Entities {
+		backendEntity := proto.GetBackendEntity(entity)
+		if backendEntity == nil {
+			return fmt.Errorf("can not get backend entity from %+v", entity)
+		}
+
+		c.Game.AddEntity(backendEntity)
+	}
+
+	header := metadata.New(map[string]string{"authorization": resp.Token})
+	ctx := metadata.NewOutgoingContext(context.Background(), header)
+	stream, err := grpcClient.Stream(ctx)
+	if err != nil {
+		return err
+	}
+
+	c.CurrentPlayer = playerID
+	c.Stream = stream
+
+	return nil
 }
 
 func (c *GameClient) handleMoveChange(change backend.MoveChange) {
@@ -63,18 +80,6 @@ func (c *GameClient) handleMoveChange(change backend.MoveChange) {
 	c.positionHistory = append([]backend.Coordinate{change.Position}, c.positionHistory[:positionHistoryLimit]...)
 }
 
-func (c *GameClient) handleInitializeResponse(resp *proto.Response) {
-	init := resp.GetInitialize()
-	for _, entity := range init.Entities {
-		backendEntity := proto.GetBackendEntity(entity)
-		if backendEntity == nil {
-			return
-		}
-		c.Game.AddEntity(backendEntity)
-	}
-	c.View.CurrentPlayer = c.CurrentPlayer
-}
-
 func (c *GameClient) handleAddEntityChange(change backend.AddEntityChange) {
 	switch laser := change.Entity.(type) {
 	case *backend.Laser:
@@ -84,8 +89,6 @@ func (c *GameClient) handleAddEntityChange(change backend.AddEntityChange) {
 			},
 		}
 		c.Stream.Send(&req)
-	default:
-		return
 	}
 }
 
@@ -101,7 +104,6 @@ func (c *GameClient) handleAddEntityResponse(resp *proto.Response) {
 	if ok && laser.OwnerID == c.CurrentPlayer {
 		return
 	}
-
 	c.Game.AddEntity(entity)
 }
 
@@ -184,7 +186,6 @@ func (c *GameClient) handleRoundStartResponse(resp *proto.Response) {
 func (c *GameClient) Exit(message string) {
 	c.View.App.Stop()
 	log.Println(message)
-	c.Cancel()
 }
 
 func (c *GameClient) Start() {
@@ -212,8 +213,6 @@ func (c *GameClient) Start() {
 
 			c.Game.Mu.Lock()
 			switch resp.GetAction().(type) {
-			case *proto.Response_Initialize:
-				c.handleInitializeResponse(resp)
 			case *proto.Response_AddEntity:
 				c.handleAddEntityResponse(resp)
 			case *proto.Response_UpdateEntity:
