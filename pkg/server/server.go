@@ -38,6 +38,9 @@ type GameServer struct {
 func (s *GameServer) broadcast(resp *proto.Response) {
 	s.mu.Lock()
 	for id, currentClient := range s.clients {
+		if currentClient.streamServer == nil {
+			continue
+		}
 		if err := currentClient.streamServer.Send(resp); err != nil {
 			log.Printf("%s - broadcast error %v", id, err)
 			currentClient.done <- errors.New("failed to broadcast message")
@@ -285,7 +288,7 @@ func (s *GameServer) handleMoveRequest(req *proto.Request, currentClient *client
 	move := req.GetMove()
 
 	s.game.ActionChannel <- backend.MoveAction{
-		ID:        currentClient.id,
+		ID:        currentClient.playerID,
 		Direction: proto.GetBackendDirection(move.Direction),
 		Created: time.Now(),
 	}
@@ -307,7 +310,7 @@ func (s *GameServer) handleLaserRequest(req *proto.Request, currentClient *clien
 	s.game.Mu.RUnlock()
 
 	s.game.ActionChannel <- backend.LaserAction{
-		OwnerID:   currentClient.id,
+		OwnerID:   currentClient.playerID,
 		ID:        id,
 		Direction: proto.GetBackendDirection(laser.Direction),
 		Created: time.Now(),
