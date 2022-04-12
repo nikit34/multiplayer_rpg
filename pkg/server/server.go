@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"log"
 	"math/rand"
@@ -21,6 +22,7 @@ type client struct {
 	streamServer proto.Game_StreamServer
 	lastMessage time.Time
 	done chan error
+	playerID uuid.UUID
 	id uuid.UUID
 }
 
@@ -192,9 +194,8 @@ func (s *GameServer) removeClient(currentClient *client) {
 
 func (s *GameServer) removePlayer(playerID uuid.UUID) {
 	s.game.Mu.Lock()
-	defer s.game.Mu.Unlock()
-
 	s.game.RemoveEntity(playerID)
+	s.game.Mu.Unlock()
 
 	resp := proto.Response{
 		Action: &proto.Response_RemoveEntity{
@@ -281,6 +282,83 @@ func (s *GameServer) handleConnectRequest(req *proto.Request, srv proto.Game_Str
 	s.broadcast(&resp)
 
 	return playerID, nil
+}
+
+func (s *GameServer) Connect(ctx context.Context, req *proto.ConnectRequest) (*proto.ConnectResponse, error) {
+	if len(s.clients) >= maxClients {
+		return nil, errors.New("The server is full")
+	}
+
+	playerID, err := uuid.Parse(req.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Password != s.password {
+		return nil, errors.New("invalid password provided")
+	}
+
+	s.game.Mu.RLock()
+	if s.game.GetEntity(playerID) != nil {
+		return nil, errors.New("duplicate player ID provided")
+	}
+	s.game.Mu.RUnlock()
+
+	re := regexp.MustCompile("^[a-zA-Z0-9]+$")
+	if !re.MatchString(req.Name) {
+		return nil, errors.New("invalid name provided")
+	}
+	icon, _ := utf8.DecodeLastRuneInString(strings.ToUpper(req.Name))
+
+	spawnPoints := s.game.GetMapSpawnPoints()
+	rand.Seed(time.Now().Unix())
+	i := rand.Int() % len(spawnPoints)
+	startCoordinate := spawnPoints[i]
+
+	player := &backend.Player{
+		Name: req.Name,
+		Icon: icon,
+		IdentifierBase: backend.IdentifierBase{UUID: playerID},
+		CurrentPosition: startCoordinate,
+	}
+
+	s.game.Mu.Lock()
+	s.game.AddEntity(player)
+	s.game.Mu.Unlock()
+
+	s.game.Mu.RLock()
+	entities := make([]*proto.Entity, 0)
+	for _, entity := range s.game.Entities {
+		protoEntity := proto.GetProtoEntity(entity)
+		if protoEntity != nil {
+			entities = append(entities, protoEntity)
+		}
+	}
+	s.game.Mu.RUnlock()
+
+	resp := proto.Response{
+		Action: &proto.Response_AddEntity{
+			AddEntity: &proto.AddEntity{
+				Entity: proto.GetProtoEntity(player),
+			},
+		},
+	}
+
+	s.broadcast(&resp)
+
+	s.mu.Lock()
+	token := uuid.New()
+	s.clients[token] = &client{
+		id: token,
+		playerID: playerID,
+		done: make(chan error),
+	}
+	s.mu.Unlock()
+
+	return &proto.ConnectResponse{
+		Token:    token.String(),
+		Entities: entities,
+	}, nil
 }
 
 func (s *GameServer) handleMoveRequest(req *proto.Request, currentClient *client) {
@@ -391,7 +469,7 @@ func (s *GameServer) Stream(srv proto.Game_StreamServer) error {
 		log.Printf("%s - removing client", currentClient.id)
 
 		s.removeClient(currentClient)
-		s.removePlayer(currentClient.id)
+		s.removePlayer(currentClient.playerID)
 	}
 	return doneError
 }
