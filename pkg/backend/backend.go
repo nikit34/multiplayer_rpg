@@ -171,7 +171,7 @@ func (action MoveAction) Perform(game *Game) {
 		position.X++
 	}
 
-	for _, wall := range game.GetMapWalls() {
+	for _, wall := range game.GetMapByType()[MapTypeWall] {
 		if position == wall {
 			return
 		}
@@ -254,7 +254,7 @@ func (game *Game) startNewRound() {
 	game.WaitForRound = false
 	game.Score = map[uuid.UUID]int{}
 	i := 0
-	spawnPoints := game.GetMapSpawnPoints()
+	spawnPoints := game.GetMapByType()[MapTypeSpawn]
 	for _, entity := range game.Entities {
 		player, ok := entity.(*Player)
 		if !ok {
@@ -317,7 +317,7 @@ func (game *Game) getCollisionMap() map[Coordinate][]Identifier {
 func (game *Game) watchCollisions() {
 	for {
 		game.Mu.Lock()
-		spawnPoints := game.GetMapSpawnPoints()
+		spawnPoints := game.GetMapByType()[MapTypeSpawn]
 		collisionMap := game.getCollisionMap()
 
 		for _, entities := range collisionMap {
@@ -380,7 +380,7 @@ func (game *Game) watchCollisions() {
 			}
 		}
 
-		for _, wall := range game.GetMapWalls() {
+		for _, wall := range game.GetMapByType()[MapTypeWall] {
 			entities, ok := collisionMap[wall]
 			if !ok {
 				continue

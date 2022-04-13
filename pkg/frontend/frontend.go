@@ -129,7 +129,7 @@ func setupViewPort(view *View) {
 				)
 			}
 
-			for _, wall := range view.Game.GetMapWalls() {
+			for _, wall := range view.Game.GetMapByType()[backend.MapTypeWall] {
 				x := centerX + wall.X
 				y := centerY + wall.Y
 

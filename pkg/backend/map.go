@@ -1,36 +1,40 @@
 package backend
 
 
+type MapType int
+
+const (
+	MapTypeNone MapType = iota
+	MapTypeWall
+	MapTypeSpawn
+)
+
 func (game *Game) GetMapDimensions() (int, int) {
 	return len(game.gameMap[0]), len(game.gameMap)
 }
 
-func (game *Game) GetMapSymbols() map[rune][]Coordinate {
+func (game *Game) GetMapByType() map[MapType][]Coordinate {
 	width, height := game.GetMapDimensions()
 	mapCenterX := width / 2
 	mapCenterY := height / 2
-	symbols := make(map[rune][]Coordinate, 0)
+	symbols := make(map[MapType][]Coordinate, 0)
 
 	for mapY, row := range game.gameMap {
 		for mapX, col := range row {
-			if col == ' ' {
-				continue
+			mapType := MapTypeNone
+			switch col {
+			case '█':
+				mapType = MapTypeWall
+			case 'S':
+				mapType = MapTypeSpawn
 			}
-			symbols[col] = append(symbols[col], Coordinate{
+			symbols[mapType] = append(symbols[mapType], Coordinate{
 				X: mapX - mapCenterX,
 				Y: mapY - mapCenterY,
 			})
 		}
 	}
 	return symbols
-}
-
-func (game *Game) GetMapWalls() []Coordinate {
-	return game.GetMapSymbols()['█']
-}
-
-func (game *Game) GetMapSpawnPoints() []Coordinate {
-	return game.GetMapSymbols()['S']
 }
 
 var MapDefault = [][]rune{

@@ -138,9 +138,9 @@ func (bots *Bots) Start() {
 			tiles: make(map[backend.Coordinate]*tile),
 		}
 
-		for symbol, positions := range bots.game.GetMapSymbols() {
+		for symbol, positions := range bots.game.GetMapByType() {
 			for _, position := range positions {
-				if symbol == '█' {
+				if symbol == backend.MapTypeWall {
 					world.tiles[position] = &tile{
 						position: position,
 						world:    world,
