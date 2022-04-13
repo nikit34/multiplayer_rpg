@@ -1,7 +1,10 @@
-.PHONY: run-client run-client-local run-server proto fmt
+.PHONY: run-client run-bot-client run-client-local run-server proto fmt build
 
 run-client:
 	go run cmd/client/client.go
+
+run-bot-client:
+	go run cmd/client/bot/bot_client.go
 
 run-client-local:
 	go run cmd/client_local.go
