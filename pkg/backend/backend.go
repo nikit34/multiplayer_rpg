@@ -315,6 +315,8 @@ func (game *Game) getCollisionMap() map[Coordinate][]Identifier {
 func (game *Game) watchCollisions() {
 	for {
 		game.Mu.Lock()
+		spawnPointIndex := 0
+		spawnPoints := game.GetMapSpawnPoints()
 
 		collisionMap := game.getCollisionMap()
 
@@ -350,13 +352,9 @@ func (game *Game) watchCollisions() {
 						continue
 					}
 
-					spawnPoints := game.GetMapSpawnPoints()
-					spawnPoint := spawnPoints[0]
-					for _, sp := range spawnPoints {
-						if Distance(player.Position(), sp) > Distance(player.Position(), spawnPoint) {
-							spawnPoint = sp
-						}
-					}
+					spawnPoint := spawnPoints[spawnPointIndex % len(spawnPoints)]
+					spawnPointIndex++
+
 					player.Move(spawnPoint)
 
 					change := PlayerRespawnChange{
