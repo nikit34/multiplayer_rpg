@@ -78,7 +78,7 @@ func (game *Game) RemoveEntity(id uuid.UUID) {
 const (
 	roundOverScore = 10
 	newRoundWaitTime = time.Second * 10
-	collisionCheckFrequency = time.Millisecond * 20
+	collisionCheckFrequency = time.Millisecond * 10
 	moveThrottle = time.Millisecond * 100
 	laserThrottle = time.Millisecond * 500
 	laserSpeed = 50
@@ -174,6 +174,16 @@ func (action MoveAction) Perform(game *Game) {
 	for _, wall := range game.GetMapWalls() {
 		if position == wall {
 			return
+		}
+	}
+
+	collidingEntities, ok := game.getCollisionMap()[position]
+	if ok {
+		for _, entity := range collidingEntities {
+			_, ok := entity.(*Player)
+			if ok {
+				return
+			}
 		}
 	}
 
