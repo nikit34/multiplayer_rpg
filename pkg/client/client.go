@@ -26,7 +26,7 @@ type GameClient struct {
 	positionHistory []backend.Coordinate
 }
 
-func NewGameClient(stream proto.Game_StreamClient, cancel context.CancelFunc, game *backend.Game, view *frontend.View) *GameClient {
+func NewGameClient(game *backend.Game, view *frontend.View) *GameClient {
 	return &GameClient{
 		Game:   game,
 		View:   view,
