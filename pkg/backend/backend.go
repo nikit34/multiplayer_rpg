@@ -214,7 +214,8 @@ type Game struct {
 	WaitForRound    bool
 	RoundWinner     uuid.UUID
 	NewRoundAt      time.Time
-	gameMap             [][]rune
+	gameMap         [][]rune
+	spawnPointIndex int
 }
 
 func NewGame() *Game {
@@ -226,7 +227,8 @@ func NewGame() *Game {
 		IsAuthoritative: true,
 		WaitForRound:    false,
 		Score:           make(map[uuid.UUID]int),
-		gameMap:             MapDefault,
+		gameMap:         MapDefault,
+		spawnPointIndex: 0,
 	}
 	return &game
 }
@@ -315,9 +317,7 @@ func (game *Game) getCollisionMap() map[Coordinate][]Identifier {
 func (game *Game) watchCollisions() {
 	for {
 		game.Mu.Lock()
-		spawnPointIndex := 0
 		spawnPoints := game.GetMapSpawnPoints()
-
 		collisionMap := game.getCollisionMap()
 
 		for _, entities := range collisionMap {
@@ -352,8 +352,8 @@ func (game *Game) watchCollisions() {
 						continue
 					}
 
-					spawnPoint := spawnPoints[spawnPointIndex % len(spawnPoints)]
-					spawnPointIndex++
+					spawnPoint := spawnPoints[game.spawnPointIndex % len(spawnPoints)]
+					game.spawnPointIndex++
 
 					player.Move(spawnPoint)
 

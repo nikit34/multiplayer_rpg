@@ -1,12 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
+	"github.com/nikit34/multiplayer_rpg_go/pkg/bot"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/server"
 	proto "github.com/nikit34/multiplayer_rpg_go/proto"
 
@@ -17,6 +18,7 @@ import (
 func main() {
 	port := flag.Int("port", 8888, "Port to listen on")
 	password := flag.String("password", "", "Server password")
+	numBots := flag.Int("bots", 0, "Number of bots to add to server")
 	flag.Parse()
 
 	log.Printf("listening on port %d", *port)
@@ -27,7 +29,14 @@ func main() {
 	}
 
 	game := backend.NewGame()
+
+	bots := bot.NewBots(game)
+	for i := 0; i < *numBots; i++ {
+		bots.AddBot(fmt.Sprintf("Bob %d", i))
+	}
+
 	game.Start()
+	bots.Start()
 
 	s := grpc.NewServer()
 	server := server.NewGameServer(game, *password)
