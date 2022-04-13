@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
+	"github.com/nikit34/multiplayer_rpg_go/pkg/bot"
 	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
 )
 
@@ -27,12 +28,15 @@ func main() {
 
 	game.AddEntity(&currentPlayers[0])
 	game.AddEntity(&currentPlayers[1])
+	bots := bot.NewBots(game)
+	bots.AddBot("Dave")
 
 	view := frontend.NewView(game)
 	view.CurrentPlayer = currentPlayers[0].ID()
 
 	game.Start()
 	view.Start()
+	bots.Start()
 
 	err := <-view.Done
 	if err != nil {
