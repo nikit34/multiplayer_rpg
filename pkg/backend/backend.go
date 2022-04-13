@@ -238,8 +238,8 @@ type LaserRemoveChange struct {
 	ID uuid.UUID
 }
 
-func Distance(a Coordinate, b Coordinate) int {
-	return int(math.Sqrt(math.Pow(float64(b.X-a.X), 2) + math.Pow(float64(b.Y-a.Y), 2)))
+func (с1 Coordinate) Distance(с2 Coordinate) int {
+	return int(math.Sqrt(math.Pow(float64(с2.X-с1.X), 2) + math.Pow(float64(с2.Y-с1.Y), 2)))
 }
 
 type RoundOverChange struct {

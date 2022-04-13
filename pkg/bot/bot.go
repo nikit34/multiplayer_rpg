@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/beefsack/go-astar"
@@ -50,7 +49,7 @@ func (t *tile) PathNeighborCost(to astar.Pather) float64 {
 
 func (t *tile) PathEstimatedCost(to astar.Pather) float64 {
 	toT := to.(*tile)
-	return float64(backend.Distance(t.position, toT.position))
+	return float64(t.position.Distance(toT.position))
 }
 
 type bot struct {
@@ -200,7 +199,7 @@ func (bots *Bots) Start() {
 						break
 					}
 
-					if !move || (backend.Distance(position, playerPosition) < backend.Distance(closestPosition, playerPosition)) {
+					if !move || (position.Distance(playerPosition) < closestPosition.Distance(playerPosition)) {
 						closestPosition = position
 						move = true
 					}
