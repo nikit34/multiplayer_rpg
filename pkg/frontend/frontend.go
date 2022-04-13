@@ -81,6 +81,15 @@ func setupViewPort(view *View) {
 
 			width = width - 1
 			height = height - 1
+
+			mapWidth, mapHeight := view.Game.GetMapDimensions()
+			if width > mapWidth {
+				cameraX = -1
+			}
+			if height > mapHeight {
+				cameraY = -1
+			}
+
 			centerX := (x + width/2) - cameraX
 			centerY := (y + height/2) - cameraY
 
