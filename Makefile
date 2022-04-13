@@ -20,9 +20,9 @@ fmt:
 
 build:
 	mkdir -p bin
-	GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o bin/linux_client cmd/client/client.go
-	GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o bin/linux_server cmd/server/server.go
-	GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o bin/linux_client_local cmd/client_local.go
-	GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o bin/windows_client.exe cmd/client/client.go
-	GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o bin/windows_server.exe cmd/server/server.go
-	GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o bin/windows_client_local.exe cmd/client_local.go
+	GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o bin/linux_client_${BUILD_SUFFIX} cmd/client/client.go
+	GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o bin/linux_server_${BUILD_SUFFIX} cmd/server/server.go
+	GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o bin/linux_client_local_${BUILD_SUFFIX} cmd/client_local.go
+	GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o bin/windows_client_${BUILD_SUFFIX}.exe cmd/client/client.go
+	GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o bin/windows_server_${BUILD_SUFFIX}.exe cmd/server/server.go
+	GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o bin/windows_client_local_${BUILD_SUFFIX}.exe cmd/client_local.go
