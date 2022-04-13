@@ -59,14 +59,12 @@ type bot struct {
 type Bots struct {
 	bots []*bot
 	game *backend.Game
-	done chan bool
 }
 
 func NewBots(game *backend.Game) *Bots {
 	return &Bots{
 		game: game,
 		bots: make([]*bot, 0),
-		done: make(chan bool),
 	}
 }
 
@@ -185,7 +183,6 @@ func (bots *Bots) Start() {
 					}
 
 					if position == playerPosition {
-						move = true
 						closestPosition = position.Add(backend.Coordinate{
 							X: 1,
 							Y: 1,
@@ -265,10 +262,5 @@ func (bots *Bots) Start() {
 
 			time.Sleep(time.Millisecond * 200)
 		}
-		<-bots.done
 	}()
-}
-
-func (bots *Bots) Stop() {
-	bots.done <- true
 }
