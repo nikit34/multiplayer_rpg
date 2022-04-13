@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
@@ -13,13 +14,16 @@ import (
 
 
 func main() {
+	address := flag.String("address", ":8888", "Server address")
+	flag.Parse()
+
 	game := backend.NewGame()
 	game.IsAuthoritative = false
 
 	view := frontend.NewView(game)
 	game.Start()
 
-	conn, err := grpc.Dial(":8888", grpc.WithInsecure())
+	conn, err := grpc.Dial(*address, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("can not connect with server %v", err)
 	}

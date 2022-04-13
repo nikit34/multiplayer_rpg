@@ -2,6 +2,7 @@ package bot
 
 import (
 	"time"
+	"math/rand"
 
 	"github.com/beefsack/go-astar"
 	"github.com/google/uuid"
@@ -200,6 +201,15 @@ func (bots *Bots) Start() {
 						closestPosition = position
 						move = true
 					}
+				}
+
+				rand.Seed(time.Now().UnixNano())
+				if move && rand.Intn(100) > 60 {
+					closestPosition = closestPosition.Add(backend.Coordinate{
+						X: rand.Intn(2) - 1,
+						Y: rand.Intn(2) - 1,
+					})
+					shoot = false
 				}
 
 				if shoot {
