@@ -3,8 +3,10 @@ package main
 import (
 	"log"
 	"flag"
+	"os"
 	"fmt"
 
+	termutil "github.com/andrew-d/go-termutil"
 	"github.com/google/uuid"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
@@ -13,6 +15,10 @@ import (
 )
 
 func main() {
+	if !termutil.Isatty(os.Stdin.Fd()) {
+		panic("this program must be run in a terminal")
+	}
+
 	numBots := flag.Int("bots", 1, "Number of bots to play against")
 	flag.Parse()
 

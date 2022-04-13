@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"regexp"
 
 	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
@@ -9,6 +10,7 @@ import (
 	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
 	"github.com/nikit34/multiplayer_rpg_go/proto"
 
+	termutil "github.com/andrew-d/go-termutil"
 	tcell "github.com/gdamore/tcell/v2"
 	"github.com/google/uuid"
 	"github.com/rivo/tview"
@@ -73,6 +75,10 @@ func connectApp(info *connectInfo) *tview.Application {
 }
 
 func main() {
+	if !termutil.Isatty(os.Stdin.Fd()) {
+		panic("this program must be run in a terminal")
+	}
+
 	game := backend.NewGame()
 	game.IsAuthoritative = false
 	view := frontend.NewView(game)
