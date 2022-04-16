@@ -1,17 +1,17 @@
 package main
 
 import (
-	"log"
 	"flag"
-	"os"
 	"fmt"
+	"log"
+	"os"
 
 	termutil "github.com/andrew-d/go-termutil"
 	"github.com/google/uuid"
 
-	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
-	"github.com/nikit34/multiplayer_rpg_go/pkg/bot"
-	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
+	"github.com/nikit34/multiplayer_rpg/pkg/backend"
+	"github.com/nikit34/multiplayer_rpg/pkg/bot"
+	"github.com/nikit34/multiplayer_rpg/pkg/frontend"
 )
 
 func main() {

@@ -1,12 +1,12 @@
 package bot
 
 import (
-	"time"
 	"math/rand"
+	"time"
 
 	"github.com/beefsack/go-astar"
 	"github.com/google/uuid"
-	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
+	"github.com/nikit34/multiplayer_rpg/pkg/backend"
 )
 
 

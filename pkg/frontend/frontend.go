@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
+	"github.com/nikit34/multiplayer_rpg/pkg/backend"
 
 	tcell "github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"

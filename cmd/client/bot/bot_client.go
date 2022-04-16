@@ -4,11 +4,11 @@ import (
 	"flag"
 	"log"
 
-	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
-	"github.com/nikit34/multiplayer_rpg_go/pkg/bot"
-	"github.com/nikit34/multiplayer_rpg_go/pkg/client"
-	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
-	"github.com/nikit34/multiplayer_rpg_go/proto"
+	"github.com/nikit34/multiplayer_rpg/pkg/backend"
+	"github.com/nikit34/multiplayer_rpg/pkg/bot"
+	"github.com/nikit34/multiplayer_rpg/pkg/client"
+	"github.com/nikit34/multiplayer_rpg/pkg/frontend"
+	"github.com/nikit34/multiplayer_rpg/proto"
 	"google.golang.org/grpc"
 )
 

@@ -8,9 +8,9 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
-	"github.com/nikit34/multiplayer_rpg_go/pkg/frontend"
-	proto "github.com/nikit34/multiplayer_rpg_go/proto"
+	"github.com/nikit34/multiplayer_rpg/pkg/backend"
+	"github.com/nikit34/multiplayer_rpg/pkg/frontend"
+	proto "github.com/nikit34/multiplayer_rpg/proto"
 )
 
 

@@ -7,7 +7,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 
-	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
+	"github.com/nikit34/multiplayer_rpg/pkg/backend"
 )
 
 func GetBackendDirection(protoDirection Direction) backend.Direction {

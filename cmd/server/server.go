@@ -6,10 +6,10 @@ import (
 	"log"
 	"net"
 
-	"github.com/nikit34/multiplayer_rpg_go/pkg/backend"
-	"github.com/nikit34/multiplayer_rpg_go/pkg/bot"
-	"github.com/nikit34/multiplayer_rpg_go/pkg/server"
-	proto "github.com/nikit34/multiplayer_rpg_go/proto"
+	"github.com/nikit34/multiplayer_rpg/pkg/backend"
+	"github.com/nikit34/multiplayer_rpg/pkg/bot"
+	"github.com/nikit34/multiplayer_rpg/pkg/server"
+	proto "github.com/nikit34/multiplayer_rpg/proto"
 
 	"google.golang.org/grpc"
 )

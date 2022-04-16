@@ -7,7 +7,7 @@ run-bot-client:
 	go run cmd/client/bot/bot_client.go
 
 run-client-local:
-	go run cmd/client_local.go
+	go run cmd/client_local/client_local.go
 
 run-server:
 	go run cmd/server/server.go
