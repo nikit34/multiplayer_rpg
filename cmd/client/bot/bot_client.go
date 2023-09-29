@@ -10,6 +10,7 @@ import (
 	"github.com/nikit34/multiplayer_rpg/pkg/frontend"
 	"github.com/nikit34/multiplayer_rpg/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 
@@ -23,7 +24,7 @@ func main() {
 	view := frontend.NewView(game)
 	game.Start()
 
-	conn, err := grpc.Dial(*address, grpc.WithInsecure())
+	conn, err := grpc.Dial(*address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("can not connect with server %v", err)
 	}
